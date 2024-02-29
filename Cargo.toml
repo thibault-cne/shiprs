@@ -1,5 +1,5 @@
 [package]
-name = "docker-rs"
+name = "shiprs"
 version = "0.1.0"
 edition = "2021"
 license-file = "LICENSE"
