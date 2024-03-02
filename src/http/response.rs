@@ -16,6 +16,24 @@ pub struct Response<B> {
     headers: HashMap<String, String>,
 }
 
+impl<B> Response<B> {
+    pub fn status(&self) -> u16 {
+        self.status
+    }
+
+    pub fn body(&self) -> &B {
+        &self.body
+    }
+
+    pub fn into_body(self) -> B {
+        self.body
+    }
+
+    pub fn headers(&self) -> &HashMap<String, String> {
+        &self.headers
+    }
+}
+
 impl<B> Response<B>
 where
     for<'de> B: Deserialize<'de>,

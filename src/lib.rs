@@ -1,14 +1,17 @@
 use std::os::unix::net::UnixStream;
 
 mod container;
+#[cfg(feature = "chrono")]
+mod datetime;
 mod docker;
 mod error;
 mod http;
+mod image;
+mod network;
 mod transport;
 
 const API_VERSION: &str = "v1.44";
 
-pub use container::ContainerInfo;
 pub use docker::Docker;
 pub use error::{Error, Result};
 pub use http::{

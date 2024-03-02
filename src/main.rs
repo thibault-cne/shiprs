@@ -1,8 +1,11 @@
-use shiprs::{ContainerInfo, Docker, RequestBuilder};
+use shiprs::Docker;
 
 fn main() {
-    let docker = Docker::unix("/var/run/docker.sock").unwrap();
-    let request = RequestBuilder::get("/containers/json").build();
-    let response = docker.request::<Vec<ContainerInfo>>(request).unwrap();
-    println!("{:?}", response);
+    let docker = Docker::new().unwrap();
+    let container = docker
+        .containers()
+        .get("c7ed178f5b9f63443a8fcd569f408d458bf6f177ab8a8d6a49e9598265a0a493")
+        .inspect()
+        .unwrap();
+    println!("{:?}", container);
 }
