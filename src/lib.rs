@@ -7,6 +7,7 @@ mod docker;
 mod error;
 mod http;
 mod image;
+mod models;
 mod network;
 mod transport;
 
@@ -40,4 +41,8 @@ impl TryInto<UnixStream> for &Socket {
             Socket::Unix(path) => UnixStream::connect(path),
         }
     }
+}
+
+pub trait OptionTrait {
+    fn as_string(&self) -> String;
 }

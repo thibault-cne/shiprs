@@ -1,4 +1,4 @@
-use crate::http::Method;
+use crate::{http::Method, OptionTrait};
 
 pub struct Request {
     method: Method,
@@ -86,6 +86,26 @@ impl RequestBuilder {
         self
     }
 
+    pub fn extend_query<S: Into<String>>(mut self, query: S) -> Self {
+        match self.query {
+            Some(q) => {
+                self.query = Some(format!("{}&{}", q, query.into()));
+            }
+            None => {
+                self.query = Some(query.into());
+            }
+        }
+        self
+    }
+
+    pub fn extend_query_with_options<O: OptionTrait>(self, options: Option<&O>) -> Self {
+        if let Some(options) = options {
+            self.extend_query(options.as_string())
+        } else {
+            self
+        }
+    }
+
     /// Build the request.
     pub fn build(self) -> Request {
         Request {
@@ -100,13 +120,22 @@ impl RequestBuilder {
 mod tests {
     use super::*;
 
+    macro_rules! request_build {
+        ($expected:literal) => {
+            format!("{}Host: {}\r\n\r\n", $expected, crate::API_VERSION)
+        };
+    }
+
     #[test]
     fn build_request() {
         let request = RequestBuilder::get("/containers/json").build();
         assert_eq!(request.method(), Method::Get);
         assert_eq!(request.path(), "/containers/json");
         assert_eq!(request.query(), None);
-        assert_eq!(request.build(), "GET /containers/json HTTP/1.1\r\n");
+        assert_eq!(
+            request.build(),
+            request_build!("GET /containers/json HTTP/1.1\r\n")
+        );
 
         let request = RequestBuilder::get("/containers/json")
             .query("all", "true")
@@ -117,13 +146,45 @@ mod tests {
         assert_eq!(request.query(), Some("all=true&limit=10"));
         assert_eq!(
             request.build(),
-            "GET /containers/json?all=true&limit=10 HTTP/1.1\r\n"
+            request_build!("GET /containers/json?all=true&limit=10 HTTP/1.1\r\n")
         );
 
         let request = RequestBuilder::post("/containers/create").build();
         assert_eq!(request.method(), Method::Post);
         assert_eq!(request.path(), "/containers/create");
         assert_eq!(request.query(), None);
-        assert_eq!(request.build(), "POST /containers/create HTTP/1.1\r\n");
+        assert_eq!(
+            request.build(),
+            request_build!("POST /containers/create HTTP/1.1\r\n")
+        );
+    }
+
+    struct TestOptions {
+        all: bool,
+        limit: u32,
+    }
+
+    impl OptionTrait for TestOptions {
+        fn as_string(&self) -> String {
+            format!("all={}&limit={}", self.all, self.limit)
+        }
+    }
+
+    #[test]
+    fn extend_query_with_options() {
+        let options = TestOptions {
+            all: true,
+            limit: 10,
+        };
+        let request = RequestBuilder::get("/containers/json")
+            .extend_query_with_options(Some(&options))
+            .build();
+        assert_eq!(request.method(), Method::Get);
+        assert_eq!(request.path(), "/containers/json");
+        assert_eq!(request.query(), Some("all=true&limit=10"));
+        assert_eq!(
+            request.build(),
+            request_build!("GET /containers/json?all=true&limit=10 HTTP/1.1\r\n")
+        );
     }
 }
