@@ -282,17 +282,19 @@ model! {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-pub enum ThrottleDevice {
-    Weight {
-        path: Option<String>,
-        weight: Option<u64>,
-    },
-    Rate {
-        path: Option<String>,
-        rate: Option<u64>,
-    },
+model! {
+    #[derive(Clone, Debug, Serialize, Deserialize)]
+    #[serde(rename_all = "PascalCase")]
+    pub enum ThrottleDevice {
+        Weight {
+            path: String,
+            weight: u64,
+        },
+        Rate {
+            path: String,
+            rate: u64,
+        },
+    }
 }
 
 model! {
