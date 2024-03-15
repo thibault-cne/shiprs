@@ -1,4 +1,4 @@
-use crate::{option::OptionIter, Response, Result};
+use crate::{error::Result, option::OptionIter, Response};
 
 pub struct Promise<'docker, O, T> {
     url: String,
