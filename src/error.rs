@@ -2,10 +2,12 @@ use std::error::Error as StdError;
 
 use serde_json::Error as SerdeJsonError;
 
+/// A type alias for `Result<T, Error>`.
 pub type Result<T> = std::result::Result<T, Error>;
 
 type Cause = Box<dyn StdError + Send + Sync>;
 
+/// Internal error type for the Docker API client.
 pub struct Error {
     inner: Box<ErrorImpl>,
 }
@@ -47,27 +49,18 @@ impl Error {
         self.inner.cause = Some(cause.into());
         self
     }
-
-    fn description(&self) -> &str {
-        match self.inner.kind {
-            ErrorKind::Io => "io error",
-            ErrorKind::Unit => "unit error",
-            ErrorKind::HttpParsing(ref kind) => kind.description(),
-            ErrorKind::SerdeJson => "serde_json error",
-        }
-    }
 }
 
-impl HttpParsingErrorKind {
-    fn description(&self) -> &str {
+impl std::fmt::Display for HttpParsingErrorKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use HttpParsingErrorKind::*;
 
         match self {
-            Response => "invalid response",
-            Header => "invalid header",
-            Status => "invalid status",
-            ChunkSize => "invalid chunk size",
-            Chunk => "invalid chunk",
+            Response => f.write_str("invalid response"),
+            Header => f.write_str("invalid header"),
+            Status => f.write_str("invalid status"),
+            ChunkSize => f.write_str("invalid chunk size"),
+            Chunk => f.write_str("invalid chunk"),
         }
     }
 }
@@ -85,7 +78,14 @@ impl std::fmt::Debug for Error {
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.description())
+        use ErrorKind::*;
+
+        match self.inner.kind {
+            Io => write!(f, "io error: {}", self.source().unwrap()),
+            Unit => write!(f, "unit error"),
+            HttpParsing(ref kind) => write!(f, "{}: {}", kind, self.source().unwrap()),
+            SerdeJson => write!(f, "serde_json error: {}", self.source().unwrap()),
+        }
     }
 }
 

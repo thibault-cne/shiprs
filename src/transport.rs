@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
 
@@ -8,7 +10,7 @@ use crate::{
     http::{request::Request, response::Response},
 };
 
-pub enum Transport {
+pub(crate) enum Transport {
     Unix {
         client: Client<UnixStream>,
         path: String,
@@ -16,7 +18,7 @@ pub enum Transport {
 }
 
 impl Transport {
-    pub fn unix<S: Into<String>>(socket: S) -> Result<Self> {
+    pub(crate) fn unix<S: Into<String>>(socket: S) -> Result<Self> {
         let socket = socket.into();
         Ok(Transport::Unix {
             client: Client {
@@ -26,7 +28,7 @@ impl Transport {
         })
     }
 
-    pub fn request<B>(&self, req: Request) -> Result<Response<B>>
+    pub(crate) fn request<B>(&self, req: Request) -> Result<Response<B>>
     where
         for<'de> B: Deserialize<'de>,
     {
@@ -40,7 +42,7 @@ const BUFFER_SIZE: usize = 1024;
 const CRLF: &[u8] = b"\r\n";
 const END: &[u8] = b"0\r\n\r\n";
 
-pub struct Client<S> {
+pub(crate) struct Client<S> {
     socket: S,
 }
 

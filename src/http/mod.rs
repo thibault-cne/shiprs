@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 pub mod promise;
 pub mod request;
 pub mod response;

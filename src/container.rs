@@ -217,6 +217,9 @@ impl<'docker> Containers<'docker> {
     }
 }
 
+/// Options for the `inspect` method.
+/// This struct corresponds to the param options of the `GET /containers/(id)/json` endpoint.
+/// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerInspect) for more information.
 #[derive(Default)]
 pub struct ContainerInspectOptions {
     pub size: bool,
@@ -242,6 +245,9 @@ impl IntoIterator for ContainerInspectOptions {
     }
 }
 
+/// Options for the `list` method.
+/// This struct corresponds to the param options of the `GET /containers/json` endpoint.
+/// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerList) for more information.
 pub struct ContainersListOptions {
     all: bool,
     limit: i32,
@@ -317,6 +323,9 @@ impl IntoIterator for ContainersListOptions {
     }
 }
 
+/// Options for the `logs` method.
+/// This struct corresponds to the param options of the `GET /containers/(id)/logs` endpoint.
+/// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerLogs) for more information.
 pub struct ContainerLogsOptions {
     follow: bool,
     stdout: bool,

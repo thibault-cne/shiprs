@@ -1,4 +1,8 @@
-use crate::{error::Result, option::OptionIter, Response};
+use crate::{
+    error::Result,
+    http::{request::RequestBuilder, response::Response},
+    option::OptionIter,
+};
 
 pub struct Promise<'docker, O, T> {
     url: String,
@@ -27,7 +31,7 @@ where
     }
 
     pub fn run(self) -> Result<Response<T>> {
-        let request = crate::RequestBuilder::get(self.url.clone())
+        let request = RequestBuilder::get(self.url.clone())
             .extend_query_with_options(self.options)
             .build();
         self.docker.request(request)

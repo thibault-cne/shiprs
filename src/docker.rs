@@ -29,13 +29,13 @@ impl Docker {
     }
 
     #[cfg(feature = "unix-socket")]
-    pub fn unix<S: Into<String>>(socket: S) -> Result<Self> {
+    pub(crate) fn unix<S: Into<String>>(socket: S) -> Result<Self> {
         Ok(Docker {
             transport: Transport::unix(socket)?,
         })
     }
 
-    pub fn request<B>(
+    pub(crate) fn request<B>(
         &self,
         req: crate::http::request::Request,
     ) -> Result<crate::http::response::Response<B>>

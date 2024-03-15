@@ -101,7 +101,7 @@ where
 
     /// A helper function to parse_http_reseponse, when the Header Transfer-Encoding
     /// `chunked` is present in the response.
-    pub fn parse_chunk(body: &[u8]) -> Result<Vec<u8>> {
+    fn parse_chunk(body: &[u8]) -> Result<Vec<u8>> {
         let mut buf: Vec<u8> = Vec::new();
         let mut count: usize = 0;
 
