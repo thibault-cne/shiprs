@@ -18,7 +18,7 @@ use crate::{docker::Docker, error::Result, http::request::RequestBuilder, option
 ///     .containers()
 ///     .get("insert container id here")
 ///     .inspect()
-///     .unwrap();
+///     .run();
 /// println!("{:?}", container);
 /// # Ok(())
 /// # }
@@ -58,7 +58,7 @@ impl<'docker> Container<'docker> {
     ///    .containers()
     ///    .get("insert container id here")
     ///    .inspect()
-    ///    .unwrap();
+    ///    .run();
     /// println!("{:?}", container);
     /// # Ok(())
     /// # }
@@ -100,7 +100,7 @@ impl<'docker> Containers<'docker> {
     /// let containers = docker
     ///     .containers()
     ///     .list()
-    ///     .unwrap();
+    ///     .run();
     /// println!("{:?}", containers);
     /// # panic!("This shlould always panic even if docker is running.");
     /// # Ok(())

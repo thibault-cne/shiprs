@@ -26,7 +26,7 @@ where
         self
     }
 
-    pub fn unwrap(self) -> Result<Response<T>> {
+    pub fn run(self) -> Result<Response<T>> {
         let request = crate::RequestBuilder::get(self.url.clone())
             .extend_query_with_options(self.options)
             .build();
