@@ -15,7 +15,6 @@ mod transport;
 const API_VERSION: &str = "v1.44";
 
 pub use docker::Docker;
-pub use error::{Error, Result};
 pub use http::{
     request::{Request, RequestBuilder},
     response::Response,
