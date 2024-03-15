@@ -1,14 +1,15 @@
 use std::os::unix::net::UnixStream;
 
-mod container;
+pub mod container;
 #[cfg(feature = "chrono")]
 mod datetime;
 mod docker;
-mod error;
+pub mod error;
 mod http;
 mod image;
 mod models;
 mod network;
+mod option;
 mod transport;
 
 const API_VERSION: &str = "v1.44";
@@ -41,8 +42,4 @@ impl TryInto<UnixStream> for &Socket {
             Socket::Unix(path) => UnixStream::connect(path),
         }
     }
-}
-
-pub trait OptionTrait {
-    fn as_string(&self) -> String;
 }

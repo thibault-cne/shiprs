@@ -1,4 +1,4 @@
-use crate::{http::Method, OptionTrait};
+use crate::{http::Method, option::OptionIter};
 
 pub struct Request {
     method: Method,
@@ -98,12 +98,14 @@ impl RequestBuilder {
         self
     }
 
-    pub fn extend_query_with_options<O: OptionTrait>(self, options: Option<&O>) -> Self {
-        if let Some(options) = options {
-            self.extend_query(options.as_string())
-        } else {
-            self
-        }
+    pub fn extend_query_with_options<O>(self, options: Option<O>) -> Self
+    where
+        O: IntoIterator<IntoIter = OptionIter>,
+    {
+        options
+            .map(|o| o.into_iter())
+            .unwrap_or_default()
+            .fold(self, |builder, (k, v)| builder.query(k, v))
     }
 
     /// Build the request.
@@ -118,6 +120,8 @@ impl RequestBuilder {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use super::*;
 
     macro_rules! request_build {
@@ -164,9 +168,16 @@ mod tests {
         limit: u32,
     }
 
-    impl OptionTrait for TestOptions {
-        fn as_string(&self) -> String {
-            format!("all={}&limit={}", self.all, self.limit)
+    impl IntoIterator for TestOptions {
+        type Item = (String, String);
+        type IntoIter = OptionIter;
+
+        fn into_iter(self) -> Self::IntoIter {
+            let options = vec![
+                ("all".to_string(), self.all.to_string()),
+                ("limit".to_string(), self.limit.to_string()),
+            ];
+            OptionIter::new(HashMap::from_iter(options))
         }
     }
 
@@ -177,14 +188,17 @@ mod tests {
             limit: 10,
         };
         let request = RequestBuilder::get("/containers/json")
-            .extend_query_with_options(Some(&options))
+            .extend_query_with_options(Some(options))
             .build();
         assert_eq!(request.method(), Method::Get);
         assert_eq!(request.path(), "/containers/json");
-        assert_eq!(request.query(), Some("all=true&limit=10"));
-        assert_eq!(
-            request.build(),
-            request_build!("GET /containers/json?all=true&limit=10 HTTP/1.1\r\n")
+        assert!(request.query().is_some());
+        let query = request.query().unwrap();
+        assert!(query == "all=true&limit=10" || query == "limit=10&all=true");
+        let request = request.build();
+        assert!(
+            request == request_build!("GET /containers/json?all=true&limit=10 HTTP/1.1\r\n")
+                || request == request_build!("GET /containers/json?limit=10&all=true HTTP/1.1\r\n")
         );
     }
 }

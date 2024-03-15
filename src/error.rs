@@ -16,7 +16,7 @@ struct ErrorImpl {
 }
 
 #[derive(Debug)]
-pub enum ErrorKind {
+pub(crate) enum ErrorKind {
     Io,
     Unit,
     HttpParsing(HttpParsingErrorKind),
@@ -24,27 +24,26 @@ pub enum ErrorKind {
 }
 
 #[derive(Debug)]
-pub enum HttpParsingErrorKind {
+pub(crate) enum HttpParsingErrorKind {
     Response,
     Header,
     Status,
-    Body,
     ChunkSize,
     Chunk,
 }
 
 impl Error {
-    pub fn new(kind: ErrorKind) -> Error {
+    pub(crate) fn new(kind: ErrorKind) -> Error {
         Error {
             inner: Box::new(ErrorImpl { kind, cause: None }),
         }
     }
 
-    pub fn io() -> Error {
+    pub(crate) fn io() -> Error {
         Error::new(ErrorKind::Io)
     }
 
-    pub fn with<C: Into<Cause>>(mut self, cause: C) -> Error {
+    pub(crate) fn with<C: Into<Cause>>(mut self, cause: C) -> Error {
         self.inner.cause = Some(cause.into());
         self
     }
@@ -67,7 +66,6 @@ impl HttpParsingErrorKind {
             Response => "invalid response",
             Header => "invalid header",
             Status => "invalid status",
-            Body => "invalid body",
             ChunkSize => "invalid chunk size",
             Chunk => "invalid chunk",
         }
