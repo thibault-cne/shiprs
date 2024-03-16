@@ -25,8 +25,8 @@ where
         }
     }
 
-    pub fn options(mut self, options: O) -> Self {
-        self.options = Some(options);
+    pub fn options(mut self, options: Option<O>) -> Self {
+        self.options = options;
         self
     }
 

@@ -17,7 +17,7 @@ use crate::{docker::Docker, error::Result, option::OptionIter};
 /// let container = docker
 ///     .containers()
 ///     .get("insert container id here")
-///     .inspect()?;
+///     .inspect(None)?;
 /// println!("{:?}", container);
 /// # Ok(())
 /// # }
@@ -38,10 +38,8 @@ impl<'docker> Container<'docker> {
     /// This corresponds to the `GET /containers/(id)/json` endpoint.
     /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerInspect) for more information.
     ///
-    /// This method is used to provide options to the inspect method.
-    ///
-    /// # Usage
-    /// This returns a `Promise` that will resolve to a `ContainerDetails` struct and using a `ContainerOptions` struct as options.
+    /// # Parameters
+    /// - `options`: ContainerInspectOptions, used to provide options to the inspect method.
     ///
     /// # Example
     /// ```no_run
@@ -53,47 +51,25 @@ impl<'docker> Container<'docker> {
     /// let container = docker
     ///    .containers()
     ///    .get("insert container id here")
-    ///    .inspect_promise()
-    ///    .run();
+    ///    .inspect(None)?;
     /// println!("{:?}", container);
     /// # Ok(())
     /// # }
-    pub fn inspect_promise(&self) -> Promise<ContainerInspectOptions, ContainerDetails> {
-        Promise::new(self.docker, format!("/containers/{}/json", self.id))
-    }
-
-    /// Inspects the docker container details.
-    /// This corresponds to the `GET /containers/(id)/json` endpoint.
-    /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerInspect) for more information.
-    ///
-    /// This method is as a shorthand to `inspect_promise` with no options.
-    ///
-    /// # Example
-    /// ```no_run
-    /// # use shiprs::error::Result;
-    /// use shiprs::Docker;
-    ///
-    /// # fn main() -> Result<()> {
-    /// let docker = Docker::new().unwrap();
-    /// let container = docker
-    ///    .containers()
-    ///    .get("insert container id here")
-    ///    .inspect()?;
-    /// println!("{:?}", container);
-    /// # Ok(())
-    /// # }
-    pub fn inspect(&self) -> Result<ContainerDetails> {
-        Ok(self.inspect_promise().run()?.into_body())
+    pub fn inspect(&self, options: Option<ContainerInspectOptions>) -> Result<ContainerDetails> {
+        Ok(
+            Promise::new(self.docker, format!("/containers/{}/json", self.id))
+                .options(options)
+                .run()?
+                .into_body(),
+        )
     }
 
     /// Retrieves the logs of the docker container.
     /// This corresponds to the `GET /containers/(id)/logs` endpoint.
     /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerLogs) for more information.
     ///
-    /// This method is used to provide options to the logs method.
-    ///
-    /// # Usage
-    /// This returns a `Promise` that will resolve to a `String` and using a `ContainerLogsOptions` struct as options.
+    /// # Parameters
+    /// - `options`: ContainerLogsOptions, used to provide options to the logs method.
     ///
     /// # Example
     /// ```no_run
@@ -105,35 +81,17 @@ impl<'docker> Container<'docker> {
     /// let logs = docker
     ///     .containers()
     ///     .get("insert container id here")
-    ///     .logs_promise()
-    ///     .run();
-    /// println!("{:?}", logs);
-    /// # Ok(())
-    /// # }
-    pub fn logs_promise(&self) -> Promise<ContainerLogsOptions, String> {
-        Promise::new(self.docker, format!("/containers/{}/logs", self.id))
-    }
-
-    /// Retrieves the logs of the docker container.
-    /// This corresponds to the `GET /containers/(id)/logs` endpoint.
-    /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerLogs) for more information.
-    ///
-    /// # Example
-    /// ```no_run
-    /// # use shiprs::error::Result;
-    /// use shiprs::Docker;
-    ///
-    /// # fn main() -> Result<()> {
-    /// let docker = Docker::new().unwrap();
-    /// let logs = docker
-    ///     .containers()
-    ///     .get("insert container id here")
-    ///     .logs()?;
+    ///     .logs(None)?;
     /// println!("{}", logs);
     /// # Ok(())
     /// # }
-    pub fn logs(&self) -> Result<String> {
-        Ok(self.logs_promise().run()?.into_body())
+    pub fn logs(&self, options: Option<ContainerLogsOptions>) -> Result<String> {
+        Ok(
+            Promise::new(self.docker, format!("/containers/{}/logs", self.id))
+                .options(options)
+                .run()?
+                .into_body(),
+        )
     }
 }
 
@@ -151,10 +109,8 @@ impl<'docker> Containers<'docker> {
     /// This corresponds to the `GET /containers/json` endpoint.
     /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerList) for more information.
     ///
-    /// This method is used to provide options to the inspect method.
-    ///
-    /// # Usage
-    /// This returns a `Promise` that will resolve to a `Vec<ContainerInfo>` struct and using a `ContainersOptions` struct as options.
+    /// # Parameters
+    /// - `option`: ContainersListOptions, used to provide options to the list method.
     ///
     /// # Example
     /// ```no_run
@@ -165,36 +121,15 @@ impl<'docker> Containers<'docker> {
     /// let docker = Docker::new().unwrap();
     /// let containers = docker
     ///     .containers()
-    ///     .list_promise()
-    ///     .run();
+    ///     .list(None)?;
     /// println!("{:?}", containers);
     /// # Ok(())
     /// # }
-    pub fn list_promise(&self) -> Promise<ContainersListOptions, Vec<ContainerInfo>> {
-        Promise::new(self.docker, "/containers/json")
-    }
-
-    /// Lists the docker containers.
-    /// This corresponds to the `GET /containers/json` endpoint.
-    /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerList) for more information.
-    ///
-    /// This method is a shorthand to `list_promise` with no options.
-    ///
-    /// # Example
-    /// ```no_run
-    /// # use shiprs::error::Result;
-    /// use shiprs::Docker;
-    ///
-    /// # fn main() -> Result<()> {
-    /// let docker = Docker::new().unwrap();
-    /// let containers = docker
-    ///     .containers()
-    ///     .list()?;
-    /// println!("{:?}", containers);
-    /// # Ok(())
-    /// # }
-    pub fn list(&self) -> Result<Vec<ContainerInfo>> {
-        Ok(self.list_promise().run()?.into_body())
+    pub fn list(&self, option: Option<ContainersListOptions>) -> Result<Vec<ContainerInfo>> {
+        Ok(Promise::new(self.docker, "/containers/json")
+            .options(option)
+            .run()?
+            .into_body())
     }
 
     /// Get a container by id.
