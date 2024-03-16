@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 
-use crate::http::promise::Promise;
+use serde::Serialize;
+
+use crate::http::request::RequestBuilder;
 use crate::models::container::*;
-use crate::{docker::Docker, error::Result, option::OptionIter};
+use crate::{docker::Docker, error::Result};
 
 /// Interface for interacting with a container.
 ///
@@ -55,13 +57,12 @@ impl<'docker> Container<'docker> {
     /// println!("{:?}", container);
     /// # Ok(())
     /// # }
-    pub fn inspect(&self, options: Option<ContainerInspectOptions>) -> Result<ContainerDetails> {
-        Ok(
-            Promise::new(self.docker, format!("/containers/{}/json", self.id))
-                .options(options)
-                .run()?
-                .into_body(),
-        )
+    pub fn inspect(&self, options: Option<InspectContainerOptions>) -> Result<ContainerDetails> {
+        let url = format!("/containers/{}/json", self.id);
+        let request = RequestBuilder::get(&*url).query(options).build();
+        let response = self.docker.request(request)?;
+
+        Ok(response.into_body())
     }
 
     /// Retrieves the logs of the docker container.
@@ -85,13 +86,12 @@ impl<'docker> Container<'docker> {
     /// println!("{}", logs);
     /// # Ok(())
     /// # }
-    pub fn logs(&self, options: Option<ContainerLogsOptions>) -> Result<String> {
-        Ok(
-            Promise::new(self.docker, format!("/containers/{}/logs", self.id))
-                .options(options)
-                .run()?
-                .into_body(),
-        )
+    pub fn logs(&self, options: Option<LogsContainerOptions>) -> Result<String> {
+        let url = format!("/containers/{}/logs", self.id);
+        let request = RequestBuilder::get(&*url).query(options).build();
+        let response = self.docker.request(request)?;
+
+        Ok(response.into_body())
     }
 }
 
@@ -121,15 +121,19 @@ impl<'docker> Containers<'docker> {
     /// let docker = Docker::new().unwrap();
     /// let containers = docker
     ///     .containers()
-    ///     .list(None)?;
+    ///     .list::<String>(None)?;
     /// println!("{:?}", containers);
     /// # Ok(())
     /// # }
-    pub fn list(&self, option: Option<ContainersListOptions>) -> Result<Vec<ContainerInfo>> {
-        Ok(Promise::new(self.docker, "/containers/json")
-            .options(option)
-            .run()?
-            .into_body())
+    pub fn list<T>(&self, options: Option<ListContainersOption<T>>) -> Result<Vec<ContainerInfo>>
+    where
+        T: Into<String> + std::hash::Hash + Eq + Serialize,
+    {
+        let url = "/containers/json";
+        let request = RequestBuilder::get(url).query(options).build();
+        let response = self.docker.request(request)?;
+
+        Ok(response.into_body())
     }
 
     /// Get a container by id.
@@ -155,125 +159,92 @@ impl<'docker> Containers<'docker> {
 /// Options for the `inspect` method.
 /// This struct corresponds to the param options of the `GET /containers/(id)/json` endpoint.
 /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerInspect) for more information.
-#[derive(Default)]
-pub struct ContainerInspectOptions {
+#[derive(Default, Serialize)]
+pub struct InspectContainerOptions {
     pub size: bool,
 }
 
-impl From<bool> for ContainerInspectOptions {
+impl From<bool> for InspectContainerOptions {
     fn from(size: bool) -> Self {
-        ContainerInspectOptions { size }
+        InspectContainerOptions { size }
     }
 }
 
-impl IntoIterator for ContainerInspectOptions {
-    type Item = (String, String);
-    type IntoIter = OptionIter;
+/// Parameters used for the [List Container API](Containers::list)
+///
+/// ## Examples
+///
+/// ```rust
+/// use std::collections::HashMap;
+///
+/// use shiprs::container::ListContainersOption;
+///
+/// // Get all running containers
+/// let options = ListContainersOption {
+///     all: true,
+///     filters: HashMap::from([("status", vec!["running"])]),
+///     ..Default::default()
+/// };
+/// ```
+///
+/// ```rust
+/// use shiprs::container::ListContainersOption;
+///
+/// // Get all containers
+/// let options: ListContainersOption<&str> = ListContainersOption {
+///    all: true,
+///   ..Default::default()
+/// };
+/// ```
+#[derive(Default, Serialize)]
+pub struct ListContainersOption<T>
+where
+    T: Into<String> + Eq + std::hash::Hash + Serialize,
+{
+    /// Return all containers. By default, only running containers are shown.
+    pub all: bool,
+    /// Return this number of most recently created containers, including non-running ones.
+    pub limit: Option<isize>,
+    /// Return the size of container as fields `SizeRw` and `SizeRootFs`.
+    pub size: bool,
 
-    fn into_iter(self) -> Self::IntoIter {
-        let options: Vec<(String, String)> = if self.size {
-            vec![("size".to_string(), "true".to_string())]
-        } else {
-            Vec::new()
-        };
-        OptionIter::new(HashMap::from_iter(options))
-    }
-}
-
-/// Options for the `list` method.
-/// This struct corresponds to the param options of the `GET /containers/json` endpoint.
-/// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerList) for more information.
-pub struct ContainersListOptions {
-    all: bool,
-    limit: i32,
-    size: bool,
-}
-
-impl ContainersListOptions {
-    pub fn new(all: bool, limit: i32, size: bool) -> Self {
-        ContainersListOptions { all, limit, size }
-    }
-
-    pub fn all(mut self, all: bool) -> Self {
-        self.all = all;
-        self
-    }
-
-    pub fn limit(mut self, limit: i32) -> Self {
-        self.limit = limit;
-        self
-    }
-
-    pub fn size(mut self, size: bool) -> Self {
-        self.size = size;
-        self
-    }
-}
-
-impl Default for ContainersListOptions {
-    fn default() -> Self {
-        ContainersListOptions {
-            all: false,
-            limit: 10,
-            size: false,
-        }
-    }
-}
-
-impl From<(bool, i32, bool)> for ContainersListOptions {
-    fn from(options: (bool, i32, bool)) -> Self {
-        ContainersListOptions {
-            all: options.0,
-            limit: options.1,
-            size: options.2,
-        }
-    }
-}
-
-impl From<HashMap<String, String>> for ContainersListOptions {
-    fn from(options: HashMap<String, String>) -> Self {
-        let all = options.get("all").map_or(false, |v| v == "true");
-        let limit = options.get("limit").map_or(10, |v| v.parse().unwrap_or(10));
-        let size = options.get("size").map_or(false, |v| v == "true");
-        ContainersListOptions { all, limit, size }
-    }
-}
-
-impl IntoIterator for ContainersListOptions {
-    type Item = (String, String);
-    type IntoIter = OptionIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        let mut options = HashMap::new();
-        if self.all {
-            options.insert("all".to_string(), "true".to_string());
-        }
-        if self.size {
-            options.insert("size".to_string(), "true".to_string());
-        }
-        if self.limit > 0 {
-            options.insert("limit".to_string(), self.limit.to_string());
-        }
-        OptionIter::new(options)
-    }
+    /// Filters to process on the container list, encoded as JSON. Available filters:
+    ///  - `ancestor`=`(<image-name>[:<tag>]`, `<image id>`, or `<image@digest>`)
+    ///  - `before`=(`<container id>` or `<container name>`)
+    ///  - `expose`=(`<port>[/<proto>]`|`<startport-endport>`/`[<proto>]`)
+    ///  - `exited`=`<int>` containers with exit code of `<int>`
+    ///  - `health`=(`starting`|`healthy`|`unhealthy`|`none`)
+    ///  - `id`=`<ID>` a container's ID
+    ///  - `isolation`=(`default`|`process`|`hyperv`) (Windows daemon only)
+    ///  - `is-task`=`(true`|`false`)
+    ///  - `label`=`key` or `label`=`"key=value"` of a container label
+    ///  - `name`=`<name>` a container's name
+    ///  - `network`=(`<network id>` or `<network name>`)
+    ///  - `publish`=(`<port>[/<proto>]`|`<startport-endport>`/`[<proto>]`)
+    ///  - `since`=(`<container id>` or `<container name>`)
+    ///  - `status`=(`created`|`restarting`|`running`|`removing`|`paused`|`exited`|`dead`)
+    ///  - `volume`=(`<volume name>` or `<mount point destination>`)
+    #[serde(serialize_with = "crate::serialize_as_json")]
+    pub filters: HashMap<T, Vec<T>>,
 }
 
 /// Options for the `logs` method.
 /// This struct corresponds to the param options of the `GET /containers/(id)/logs` endpoint.
 /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerLogs) for more information.
-pub struct ContainerLogsOptions {
-    follow: bool,
-    stdout: bool,
-    stderr: bool,
-    since: i32,
-    until: i32,
-    timestamps: bool,
-    tail: String,
+#[derive(Serialize)]
+pub struct LogsContainerOptions {
+    pub follow: bool,
+    pub stdout: bool,
+    pub stderr: bool,
+    pub since: i32,
+    pub until: i32,
+    pub timestamps: bool,
+    pub tail: String,
 }
 
-impl Default for ContainerLogsOptions {
+impl Default for LogsContainerOptions {
     fn default() -> Self {
-        ContainerLogsOptions {
+        LogsContainerOptions {
             follow: false,
             stdout: false,
             stderr: false,
@@ -282,36 +253,5 @@ impl Default for ContainerLogsOptions {
             timestamps: false,
             tail: "all".to_string(),
         }
-    }
-}
-
-impl IntoIterator for ContainerLogsOptions {
-    type Item = (String, String);
-    type IntoIter = OptionIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        let mut options = HashMap::new();
-        if self.follow {
-            options.insert("follow".to_string(), "true".to_string());
-        }
-        if self.stdout {
-            options.insert("stdout".to_string(), "true".to_string());
-        }
-        if self.stderr {
-            options.insert("stderr".to_string(), "true".to_string());
-        }
-        if self.since > 0 {
-            options.insert("since".to_string(), self.since.to_string());
-        }
-        if self.until > 0 {
-            options.insert("until".to_string(), self.until.to_string());
-        }
-        if self.timestamps {
-            options.insert("timestamps".to_string(), "true".to_string());
-        }
-        if self.tail != "all" {
-            options.insert("tail".to_string(), self.tail);
-        }
-        OptionIter::new(options)
     }
 }

@@ -1,33 +1,28 @@
-use crate::{http::Method, option::OptionIter};
+use std::collections::HashMap;
 
-pub struct Request {
+use serde::Serialize;
+
+use super::uri::Uri;
+use crate::http::Method;
+
+pub struct Request<'a> {
     method: Method,
-    path: String,
-    query: Option<String>,
+    uri: Uri<'a>,
+    headers: HashMap<String, String>,
 }
 
-impl Request {
+impl<'a> Request<'a> {
     pub fn method(&self) -> Method {
         self.method
     }
 
-    pub fn path(&self) -> &str {
-        &self.path
-    }
-
-    pub fn query(&self) -> Option<&str> {
-        self.query.as_deref()
+    pub fn uri(&self) -> &str {
+        self.uri.as_ref()
     }
 
     /// Build the request.
     pub fn build(self) -> String {
-        format!(
-            "{} {}{} HTTP/1.1\r\nHost: {}\r\n\r\n",
-            self.method,
-            self.path,
-            self.query.map(|q| format!("?{}", q)).unwrap_or_default(),
-            crate::API_VERSION
-        )
+        self.to_string()
     }
 
     pub fn into_bytes(self) -> Vec<u8> {
@@ -35,170 +30,159 @@ impl Request {
     }
 }
 
-pub struct RequestBuilder {
-    method: Method,
-    path: String,
-    query: Option<String>,
+impl std::fmt::Display for Request<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let headers = self
+            .headers
+            .iter()
+            .map(|(k, v)| format!("{}: {}", k, v))
+            .collect::<Vec<_>>()
+            .join("\r\n");
+        write!(
+            f,
+            "{} {} HTTP/1.1\r\n{}\r\n\r\n",
+            self.method,
+            self.uri.as_ref(),
+            headers
+        )
+    }
 }
 
-impl RequestBuilder {
+pub struct RequestBuilder<'a, O>
+where
+    O: Serialize,
+{
+    method: Method,
+    path: &'a str,
+    query: Option<O>,
+    headers: HashMap<String, String>,
+}
+
+impl<'a, O> RequestBuilder<'a, O>
+where
+    O: Serialize,
+{
     /// Create a new request builder.
     /// Prefer using the `get`, `post`, `put`, `delete`, and `head` methods
     /// to create the right request.
-    pub fn new<M: Into<Method>, P: Into<String>>(method: M, path: P) -> Self {
+    fn new<M: Into<Method>>(method: M, path: &'a str) -> Self {
         RequestBuilder {
             method: method.into(),
-            path: path.into(),
+            path,
             query: None,
+            headers: HashMap::from([
+                ("Host".to_string(), crate::API_VERSION.to_string()),
+                ("Content-Type".to_string(), "application/json".to_string()),
+            ]),
         }
     }
 
-    pub fn get<P: Into<String>>(path: P) -> Self {
-        RequestBuilder::new(Method::Get, path)
+    pub fn get<P>(path: P) -> Self
+    where
+        P: Into<&'a str>,
+    {
+        RequestBuilder::new(Method::Get, path.into())
     }
 
-    pub fn post<P: Into<String>>(path: P) -> Self {
+    pub fn post(path: &'a str) -> Self {
         RequestBuilder::new(Method::Post, path)
     }
 
-    pub fn put<P: Into<String>>(path: P) -> Self {
+    pub fn put(path: &'a str) -> Self {
         RequestBuilder::new(Method::Put, path)
     }
 
-    pub fn delete<P: Into<String>>(path: P) -> Self {
+    pub fn delete(path: &'a str) -> Self {
         RequestBuilder::new(Method::Delete, path)
     }
 
-    pub fn head<P: Into<String>>(path: P) -> Self {
+    pub fn head(path: &'a str) -> Self {
         RequestBuilder::new(Method::Head, path)
     }
 
-    /// Add a query parameter to the request.
-    pub fn query<S: Into<String>>(mut self, key: S, value: S) -> Self {
-        match self.query {
-            Some(q) => {
-                self.query = Some(format!("{}&{}={}", q, key.into(), value.into()));
-            }
-            None => {
-                self.query = Some(format!("{}={}", key.into(), value.into()));
-            }
-        }
+    pub fn query(mut self, query: Option<O>) -> Self {
+        self.query = query;
         self
     }
 
-    pub fn extend_query<S: Into<String>>(mut self, query: S) -> Self {
-        match self.query {
-            Some(q) => {
-                self.query = Some(format!("{}&{}", q, query.into()));
-            }
-            None => {
-                self.query = Some(query.into());
-            }
-        }
-        self
-    }
-
-    pub fn extend_query_with_options<O>(self, options: Option<O>) -> Self
+    pub fn header<K, V>(mut self, key: K, value: V) -> Self
     where
-        O: IntoIterator<IntoIter = OptionIter>,
+        K: Into<String>,
+        V: Into<String>,
     {
-        options
-            .map(|o| o.into_iter())
-            .unwrap_or_default()
-            .fold(self, |builder, (k, v)| builder.query(k, v))
+        self.headers.insert(key.into(), value.into());
+        self
     }
 
     /// Build the request.
-    pub fn build(self) -> Request {
+    pub fn build(self) -> Request<'a> {
+        let uri = Uri::parse(self.path, self.query).unwrap();
         Request {
             method: self.method,
-            path: self.path,
-            query: self.query,
+            uri,
+            headers: self.headers,
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
     use super::*;
 
-    macro_rules! request_build {
-        ($expected:literal) => {
-            format!("{}Host: {}\r\n\r\n", $expected, crate::API_VERSION)
-        };
+    macro_rules! assert_request_uri {
+        ($req:expr, $expected:literal) => {{
+            let req_build = $req.build();
+            let req_uri = req_build.split("\r\n").next();
+            assert_eq!(req_uri, Some($expected));
+        }};
     }
 
     #[test]
-    fn build_request() {
-        let request = RequestBuilder::get("/containers/json").build();
+    fn build_request_no_options() {
+        let request = RequestBuilder::<String>::get("/containers/json").build();
         assert_eq!(request.method(), Method::Get);
-        assert_eq!(request.path(), "/containers/json");
-        assert_eq!(request.query(), None);
+        assert_eq!(request.uri(), "/containers/json");
         assert_eq!(
-            request.build(),
-            request_build!("GET /containers/json HTTP/1.1\r\n")
+            request.headers.get("Host"),
+            Some(&crate::API_VERSION.to_string())
         );
-
-        let request = RequestBuilder::get("/containers/json")
-            .query("all", "true")
-            .query("limit", "10")
-            .build();
-        assert_eq!(request.method(), Method::Get);
-        assert_eq!(request.path(), "/containers/json");
-        assert_eq!(request.query(), Some("all=true&limit=10"));
         assert_eq!(
-            request.build(),
-            request_build!("GET /containers/json?all=true&limit=10 HTTP/1.1\r\n")
+            request.headers.get("Content-Type"),
+            Some(&String::from("application/json"))
         );
+        assert_request_uri!(request, "GET /containers/json HTTP/1.1");
 
-        let request = RequestBuilder::post("/containers/create").build();
+        let request = RequestBuilder::<String>::post("/containers/create").build();
         assert_eq!(request.method(), Method::Post);
-        assert_eq!(request.path(), "/containers/create");
-        assert_eq!(request.query(), None);
+        assert_eq!(request.uri(), "/containers/create");
         assert_eq!(
-            request.build(),
-            request_build!("POST /containers/create HTTP/1.1\r\n")
+            request.headers.get("Host"),
+            Some(&crate::API_VERSION.to_string())
         );
+        assert_eq!(
+            request.headers.get("Content-Type"),
+            Some(&String::from("application/json"))
+        );
+        assert_request_uri!(request, "POST /containers/create HTTP/1.1");
     }
 
+    #[derive(Serialize)]
     struct TestOptions {
         all: bool,
         limit: u32,
     }
 
-    impl IntoIterator for TestOptions {
-        type Item = (String, String);
-        type IntoIter = OptionIter;
-
-        fn into_iter(self) -> Self::IntoIter {
-            let options = vec![
-                ("all".to_string(), self.all.to_string()),
-                ("limit".to_string(), self.limit.to_string()),
-            ];
-            OptionIter::new(HashMap::from_iter(options))
-        }
-    }
-
     #[test]
-    fn extend_query_with_options() {
+    fn build_request_with_options() {
         let options = TestOptions {
             all: true,
             limit: 10,
         };
         let request = RequestBuilder::get("/containers/json")
-            .extend_query_with_options(Some(options))
+            .query(Some(options))
             .build();
         assert_eq!(request.method(), Method::Get);
-        assert_eq!(request.path(), "/containers/json");
-        assert!(request.query().is_some());
-        let query = request.query().unwrap();
-        assert!(query == "all=true&limit=10" || query == "limit=10&all=true");
-        let request = request.build();
-        assert!(
-            request == request_build!("GET /containers/json?all=true&limit=10 HTTP/1.1\r\n")
-                || request == request_build!("GET /containers/json?limit=10&all=true HTTP/1.1\r\n")
-        );
+        assert_eq!(request.uri(), "/containers/json?all=true&limit=10");
+        assert_request_uri!(request, "GET /containers/json?all=true&limit=10 HTTP/1.1");
     }
 }

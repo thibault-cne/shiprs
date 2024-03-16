@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 
-pub mod promise;
 pub mod request;
 pub mod response;
+pub mod uri;
 
 const CR: u8 = b'\r';
 const LF: u8 = b'\n';

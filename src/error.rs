@@ -23,6 +23,7 @@ pub(crate) enum ErrorKind {
     Unit,
     HttpParsing(HttpParsingErrorKind),
     SerdeJson,
+    SerdeUrlEncoded,
 }
 
 #[derive(Debug)]
@@ -85,6 +86,7 @@ impl std::fmt::Display for Error {
             Unit => write!(f, "unit error"),
             HttpParsing(ref kind) => write!(f, "{}: {}", kind, self.source().unwrap()),
             SerdeJson => write!(f, "serde_json error: {}", self.source().unwrap()),
+            SerdeUrlEncoded => write!(f, "serde_urlencoded error: {}", self.source().unwrap()),
         }
     }
 }
@@ -107,6 +109,7 @@ error_from! {
     with_cause std::io::Error => fn io;
     inner_kind HttpParsingErrorKind => HttpParsing;
     with_cause SerdeJsonError => SerdeJson;
+    with_cause serde_urlencoded::ser::Error => SerdeUrlEncoded;
 }
 
 mod macros {
