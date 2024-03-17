@@ -7,4 +7,5 @@ extern crate serde_derive;
 extern crate serde;
 extern crate serde_json;
 
+#[rustfmt::skip]
 pub mod models;

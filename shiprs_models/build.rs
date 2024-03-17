@@ -14,7 +14,9 @@ extern crate serde_derive;
 extern crate serde;
 extern crate serde_json;
 
-pub mod models;"#;
+#[rustfmt::skip]
+pub mod models;
+"#;
 
 fn main() -> Result<()> {
     ensure_openapi_generator_cli()?;
@@ -43,6 +45,19 @@ fn cleanup_generated_files() -> Result<()> {
         if std::fs::metadata(dir).is_ok() {
             std::fs::remove_dir_all(dir)?;
         }
+    }
+
+    Ok(())
+}
+
+fn run_cargo_fmt() -> Result<()> {
+    let output = Command::new("cargo").arg("fmt").output()?;
+
+    if !output.status.success() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "cargo fmt failed",
+        ));
     }
 
     Ok(())
