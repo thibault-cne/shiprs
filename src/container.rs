@@ -1,6 +1,7 @@
 use std::collections::HashMap;
+use std::hash::Hash;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use shiprs_models::models::*;
 
@@ -279,9 +280,12 @@ impl Default for LogsContainerOptions {
 /// This struct corresponds to the param options of the `POST /containers/create` endpoint.
 /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerCreate) for more information.
 #[derive(Default, Serialize)]
-pub struct CreateContainerOptions {
+pub struct CreateContainerOptions<T>
+where
+    T: Into<String> + Serialize,
+{
     /// Assign the specified name to the container. Must match `/?[a-zA-Z0-9][a-zA-Z0-9_.-]+`.
-    pub name: String,
+    pub name: T,
 
     /// Platform in the format os[/arch[/variant]] used for image lookup.
     /// When specified, the daemon checks if the requested image is present in
@@ -297,5 +301,164 @@ pub struct CreateContainerOptions {
     ///     match the detected host platform (linux/amd64) and no
     ///     specific platform was requested
     /// ```
-    pub platform: String,
+    pub platform: Option<T>,
+}
+
+/// This container's networking configuration.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+#[allow(missing_docs)]
+pub struct NetworkingConfig<T: Into<String> + Hash + Eq> {
+    pub endpoints_config: HashMap<T, EndpointSettings>,
+}
+
+/// Container to create.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct Config<T>
+where
+    T: Into<String> + Eq + Hash,
+{
+    /// The hostname to use for the container, as a valid RFC 1123 hostname.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hostname: Option<T>,
+
+    /// The domain name to use for the container.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub domainname: Option<T>,
+
+    /// The user that commands are run as inside the container.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user: Option<T>,
+
+    /// Whether to attach to `stdin`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attach_stdin: Option<bool>,
+
+    /// Whether to attach to `stdout`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attach_stdout: Option<bool>,
+
+    /// Whether to attach to `stderr`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attach_stderr: Option<bool>,
+
+    /// An object mapping ports to an empty object in the form:  `{\"<port>/<tcp|udp|sctp>\": {}}`
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exposed_ports: Option<HashMap<T, HashMap<(), ()>>>,
+
+    /// Attach standard streams to a TTY, including `stdin` if it is not closed.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tty: Option<bool>,
+
+    /// Open `stdin`
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub open_stdin: Option<bool>,
+
+    /// Close `stdin` after one attached client disconnects
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stdin_once: Option<bool>,
+
+    /// A list of environment variables to set inside the container in the form `[\"VAR=value\", ...]`. A variable without `=` is removed from the environment, rather than to have an empty value.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub env: Option<Vec<T>>,
+
+    /// Command to run specified as a string or an array of strings.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cmd: Option<Vec<T>>,
+
+    /// A TEST to perform TO Check that the container is healthy.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub healthcheck: Option<HealthConfig>,
+
+    /// Command is already escaped (Windows only)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub args_escaped: Option<bool>,
+
+    /// The name of the image to use when creating the container
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image: Option<T>,
+
+    /// An object mapping mount point paths inside the container to empty objects.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub volumes: Option<HashMap<T, HashMap<(), ()>>>,
+
+    /// The working directory for commands to run in.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub working_dir: Option<T>,
+
+    /// The entry point for the container as a string or an array of strings.  If the array consists of exactly one empty string (`[\"\"]`) then the entry point is reset to system default (i.e., the entry point used by docker when there is no `ENTRYPOINT` instruction in the `Dockerfile`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub entrypoint: Option<Vec<T>>,
+
+    /// Disable networking for the container.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub network_disabled: Option<bool>,
+
+    /// MAC address of the container.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mac_address: Option<T>,
+
+    /// `ONBUILD` metadata that were defined in the image's `Dockerfile`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub on_build: Option<Vec<T>>,
+
+    /// User-defined key/value metadata.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub labels: Option<HashMap<T, T>>,
+
+    /// Signal to stop a container as a string or unsigned integer.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stop_signal: Option<T>,
+
+    /// Timeout to stop a container in seconds.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stop_timeout: Option<i64>,
+
+    /// Shell for when `RUN`, `CMD`, and `ENTRYPOINT` uses a shell.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shell: Option<Vec<T>>,
+
+    /// Container configuration that depends on the host we are running on.
+    /// Shell for when `RUN`, `CMD`, and `ENTRYPOINT` uses a shell.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub host_config: Option<HostConfig>,
+
+    /// This container's networking configuration.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub networking_config: Option<NetworkingConfig<T>>,
+}
+
+impl From<ContainerConfig> for Config<String> {
+    fn from(value: ContainerConfig) -> Self {
+        Config {
+            hostname: value.hostname,
+            domainname: value.domainname,
+            user: value.user,
+            attach_stdin: value.attach_stdin,
+            attach_stdout: value.attach_stdout,
+            attach_stderr: value.attach_stderr,
+            exposed_ports: value.exposed_ports,
+            tty: value.tty,
+            open_stdin: value.open_stdin,
+            stdin_once: value.stdin_once,
+            env: value.env,
+            cmd: value.cmd,
+            healthcheck: value.healthcheck,
+            args_escaped: value.args_escaped,
+            image: value.image,
+            volumes: value.volumes,
+            working_dir: value.working_dir,
+            entrypoint: value.entrypoint,
+            network_disabled: value.network_disabled,
+            mac_address: value.mac_address,
+            on_build: value.on_build,
+            labels: value.labels,
+            stop_signal: value.stop_signal,
+            stop_timeout: value.stop_timeout,
+            shell: value.shell,
+            host_config: None,
+            networking_config: None,
+        }
+    }
 }
