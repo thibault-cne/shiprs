@@ -19,6 +19,8 @@ pub mod models;
 "#;
 
 fn main() -> Result<()> {
+    println!("cargo:rerun-if-changed=build.rs");
+
     ensure_openapi_generator_cli()?;
     generate_models()?;
 
