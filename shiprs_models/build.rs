@@ -1,106 +1,54 @@
-use std::fs::File;
-use std::io::Result;
-use std::io::Write;
-use std::path::Path;
+#![allow(missing_docs)]
+use std::{path::Path, process::Command};
 
-use std::process::Command;
+fn main() {
+    let base_path = Path::new(env!("CARGO_MANIFEST_DIR"));
 
-const LIB_RS_CONTENT: &str = r#"#![allow(unused_imports)]
-#![allow(clippy::too_many_arguments)]
+    // Check for modification for rerun
+    let build_rs = base_path.join("build.rs");
+    println!("cargo:rerun-if-changed={}", build_rs.to_str().unwrap());
 
-#[macro_use]
-extern crate serde_derive;
-
-extern crate serde;
-extern crate serde_json;
-
-#[rustfmt::skip]
-pub mod models;
-"#;
-
-fn main() -> Result<()> {
-    let base_path = std::env::var("CARGO_MANIFEST_DIR").unwrap();
-
-    println!("cargo:rerun-if-changed={}/build.rs", base_path);
-
-    ensure_openapi_generator_cli()?;
-    generate_models()?;
-
-    write_string_to_file("src/lib.rs", LIB_RS_CONTENT)?;
-
-    // Cleanup generated files
-    cleanup_generated_files(base_path)?;
-
-    Ok(())
+    ensure_mvn();
+    build_models();
+    cleanup(base_path);
 }
 
-fn cleanup_generated_files<P: AsRef<Path>>(base_path: P) -> Result<()> {
-    let generated_files = ["openapitools.json"];
-
-    let generated_dirs = ["src/apis", ".openapi-generator"];
-
-    for file in generated_files.iter() {
-        let path = base_path.as_ref().join(file);
-        if std::fs::metadata(&path).is_ok() {
-            std::fs::remove_file(path)?;
-        }
+fn ensure_mvn() {
+    if Command::new("mvn").arg("--version").status().is_err() {
+        panic!("Maven is not installed");
     }
+}
 
-    for dir in generated_dirs.iter() {
+fn build_models() {
+    Command::new("mvn")
+        .args(["clean", "compiler:compile", "generate-resources"])
+        .output()
+        .expect("Failed to build models");
+}
+
+fn cleanup<P: AsRef<Path>>(base_path: P) {
+    let dirs = [
+        "target",
+        "src/client",
+        "src/server",
+        "api",
+        "examples",
+        ".swagger-codegen",
+    ];
+
+    let files = [".swagger-codegen-ignore"];
+
+    for dir in dirs.iter() {
         let path = base_path.as_ref().join(dir);
-        if std::fs::metadata(&path).is_ok() {
-            std::fs::remove_dir_all(path)?;
+        if path.exists() {
+            std::fs::remove_dir_all(path).expect("Failed to remove directory");
         }
     }
 
-    Ok(())
-}
-
-fn ensure_openapi_generator_cli() -> Result<()> {
-    let output = Command::new("openapi-generator-cli")
-        .arg("version")
-        .output()?;
-
-    if !output.status.success() {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "openapi-generator-cli not found in PATH",
-        ));
+    for file in files.iter() {
+        let path = base_path.as_ref().join(file);
+        if path.exists() {
+            std::fs::remove_file(path).expect("Failed to remove file");
+        }
     }
-
-    Ok(())
-}
-
-fn generate_models() -> Result<()> {
-    let mut cmd = Command::new("openapi-generator-cli");
-    cmd.args([
-        "generate",
-        "-i",
-        "https://docs.docker.com/reference/engine/v1.44.yaml",
-        "-g",
-        "rust",
-        "-c",
-        "openapi_generator_config.yaml",
-    ]);
-
-    let output = cmd.output()?;
-
-    if !output.status.success() {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!(
-                "openapi-generator-cli failed with status: {}",
-                output.status
-            ),
-        ));
-    }
-
-    Ok(())
-}
-
-fn write_string_to_file<P: AsRef<Path>>(path: P, contents: impl AsRef<str>) -> Result<()> {
-    let mut file = File::create(path)?;
-    file.write_all(contents.as_ref().as_bytes())?;
-
-    Ok(())
 }
