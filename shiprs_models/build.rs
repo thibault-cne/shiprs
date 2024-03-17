@@ -50,19 +50,6 @@ fn cleanup_generated_files() -> Result<()> {
     Ok(())
 }
 
-fn run_cargo_fmt() -> Result<()> {
-    let output = Command::new("cargo").arg("fmt").output()?;
-
-    if !output.status.success() {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "cargo fmt failed",
-        ));
-    }
-
-    Ok(())
-}
-
 fn ensure_openapi_generator_cli() -> Result<()> {
     let output = Command::new("openapi-generator-cli")
         .arg("version")
