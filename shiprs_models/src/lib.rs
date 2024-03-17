@@ -15,4 +15,5 @@ use std::collections::HashMap;
 
 pub const BASE_PATH: &str = "/v1.44";
 
+#[rustfmt::skip]
 pub mod models;
