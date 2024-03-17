@@ -4,7 +4,7 @@ A rust wrapper for the Docker Engine API. This library is intended to use the mi
 
 ## Sources
 
-This library is strongly inspired by the [shiplift](https://github.com/softprops/shiplift) library and the [bollard](https://github.com/fussybeaver/bollard/tree/master) library.
+This library is strongly inspired by the [shiplift](https://github.com/softprops/shiplift) and [bollard](https://github.com/fussybeaver/bollard/tree/master) libraries.
 
 ## Warning
 
