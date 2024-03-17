@@ -5,13 +5,20 @@ use serde::Serialize;
 use super::uri::Uri;
 use crate::http::Method;
 
-pub struct Request<'a> {
+pub struct Request<'a, B>
+where
+    B: Serialize,
+{
     method: Method,
     uri: Uri<'a>,
     headers: HashMap<String, String>,
+    body: Option<B>,
 }
 
-impl<'a> Request<'a> {
+impl<'a, B> Request<'a, B>
+where
+    B: Serialize,
+{
     pub fn method(&self) -> Method {
         self.method
     }
@@ -30,7 +37,10 @@ impl<'a> Request<'a> {
     }
 }
 
-impl std::fmt::Display for Request<'_> {
+impl<B> std::fmt::Display for Request<'_, B>
+where
+    B: Serialize,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let headers = self
             .headers
@@ -48,19 +58,22 @@ impl std::fmt::Display for Request<'_> {
     }
 }
 
-pub struct RequestBuilder<'a, O>
+pub struct RequestBuilder<'a, O, B>
 where
     O: Serialize,
+    B: Serialize,
 {
     method: Method,
     path: &'a str,
     query: Option<O>,
     headers: HashMap<String, String>,
+    body: Option<B>,
 }
 
-impl<'a, O> RequestBuilder<'a, O>
+impl<'a, O, B> RequestBuilder<'a, O, B>
 where
     O: Serialize,
+    B: Serialize,
 {
     /// Create a new request builder.
     /// Prefer using the `get`, `post`, `put`, `delete`, and `head` methods
@@ -74,6 +87,7 @@ where
                 ("Host".to_string(), crate::API_VERSION.to_string()),
                 ("Content-Type".to_string(), "application/json".to_string()),
             ]),
+            body: None,
         }
     }
 
@@ -114,13 +128,24 @@ where
         self
     }
 
+    pub fn body(mut self, body: B) -> Self {
+        self.body = Some(body);
+        self
+    }
+
+    pub fn body_mut(&mut self) -> &mut Option<B> {
+        &mut self.body
+    }
+
     /// Build the request.
-    pub fn build(self) -> Request<'a> {
+    pub fn build(self) -> Request<'a, B> {
         let uri = Uri::parse(self.path, self.query).unwrap();
+
         Request {
             method: self.method,
             uri,
             headers: self.headers,
+            body: self.body,
         }
     }
 }
@@ -139,7 +164,7 @@ mod tests {
 
     #[test]
     fn build_request_no_options() {
-        let request = RequestBuilder::<String>::get("/containers/json").build();
+        let request = RequestBuilder::<String, ()>::get("/containers/json").build();
         assert_eq!(request.method(), Method::Get);
         assert_eq!(request.uri(), "/containers/json");
         assert_eq!(
@@ -152,7 +177,7 @@ mod tests {
         );
         assert_request_uri!(request, "GET /containers/json HTTP/1.1");
 
-        let request = RequestBuilder::<String>::post("/containers/create").build();
+        let request = RequestBuilder::<String, ()>::post("/containers/create").build();
         assert_eq!(request.method(), Method::Post);
         assert_eq!(request.uri(), "/containers/create");
         assert_eq!(
@@ -178,7 +203,7 @@ mod tests {
             all: true,
             limit: 10,
         };
-        let request = RequestBuilder::get("/containers/json")
+        let request = RequestBuilder::<TestOptions, ()>::get("/containers/json")
             .query(Some(options))
             .build();
         assert_eq!(request.method(), Method::Get);

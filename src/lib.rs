@@ -5,7 +5,6 @@ mod docker;
 pub mod error;
 mod http;
 mod image;
-mod models;
 mod network;
 mod transport;
 

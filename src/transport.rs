@@ -3,7 +3,7 @@
 use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     error::Result,
@@ -28,9 +28,10 @@ impl Transport {
         })
     }
 
-    pub(crate) fn request<B>(&self, req: Request) -> Result<Response<B>>
+    pub(crate) fn request<B, R>(&self, req: Request<B>) -> Result<Response<R>>
     where
-        for<'de> B: Deserialize<'de>,
+        B: Serialize,
+        for<'de> R: Deserialize<'de>,
     {
         match self {
             Transport::Unix { client, .. } => client.request(req),
@@ -47,9 +48,10 @@ pub(crate) struct Client<S> {
 }
 
 impl Client<UnixStream> {
-    fn request<B>(&self, req: Request) -> Result<Response<B>>
+    fn request<B, R>(&self, req: Request<B>) -> Result<Response<R>>
     where
-        for<'de> B: Deserialize<'de>,
+        B: Serialize,
+        for<'de> R: Deserialize<'de>,
     {
         let mut socket = self.socket.try_clone()?;
 
@@ -74,7 +76,7 @@ impl Client<UnixStream> {
             }
         }
 
-        Response::<B>::try_from(raw_resp.as_slice())
+        Response::<R>::try_from(raw_resp.as_slice())
     }
 }
 

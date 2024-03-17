@@ -1,6 +1,6 @@
 use std::env;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::error::Result;
 use crate::transport::Transport;
@@ -35,12 +35,13 @@ impl Docker {
         })
     }
 
-    pub(crate) fn request<B>(
+    pub(crate) fn request<B, R>(
         &self,
-        req: crate::http::request::Request,
-    ) -> Result<crate::http::response::Response<B>>
+        req: crate::http::request::Request<B>,
+    ) -> Result<crate::http::response::Response<R>>
     where
-        for<'de> B: Deserialize<'de>,
+        B: Serialize,
+        for<'de> R: Deserialize<'de>,
     {
         self.transport.request(req)
     }

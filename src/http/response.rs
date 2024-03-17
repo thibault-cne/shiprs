@@ -138,9 +138,9 @@ where
     }
 }
 
-impl<B> TryFrom<&[u8]> for Response<B>
+impl<R> TryFrom<&[u8]> for Response<R>
 where
-    for<'de> B: Deserialize<'de>,
+    for<'de> R: Deserialize<'de>,
 {
     type Error = Error;
 
