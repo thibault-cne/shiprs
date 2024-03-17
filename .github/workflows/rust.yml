@@ -25,13 +25,15 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
-      - name: Setup npm
-        uses: actions/setup-node@v4
+      - name: Setup java
+        uses: actions/setup-java@v3
         with:
-          node-version: 20
+          java-version: "17"
+          distribution: "temurin"
+          cache: maven
 
-      - name: Setup openapi generator cli
-        run: npm install @openapitools/openapi-generator-cli -g
+      - name: Maven verify
+        run: mvn --batch-mode --update-snapshots verify
 
       - name: Toolchain info
         run: |
@@ -39,13 +41,15 @@ jobs:
           rustc --version
           cargo clippy --version
 
+      - name: Build
+        run: |
+          cargo build --verbose
+          cargo build --verbose --release
+
       - name: Lint
         run: |
           cargo fmt -- --check
           cargo clippy -- -D warnings
-
-      - name: Build
-        run: cargo build --verbose --release
 
       - name: Run tests
         run: |
