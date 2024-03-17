@@ -19,7 +19,9 @@ pub mod models;
 "#;
 
 fn main() -> Result<()> {
-    println!("cargo:rerun-if-changed=build.rs");
+    let base_path = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+
+    println!("cargo:rerun-if-changed={}/build.rs", base_path);
 
     ensure_openapi_generator_cli()?;
     generate_models()?;
@@ -27,25 +29,27 @@ fn main() -> Result<()> {
     write_string_to_file("src/lib.rs", LIB_RS_CONTENT)?;
 
     // Cleanup generated files
-    cleanup_generated_files()?;
+    cleanup_generated_files(base_path)?;
 
     Ok(())
 }
 
-fn cleanup_generated_files() -> Result<()> {
+fn cleanup_generated_files<P: AsRef<Path>>(base_path: P) -> Result<()> {
     let generated_files = ["openapitools.json"];
 
     let generated_dirs = ["src/apis", ".openapi-generator"];
 
     for file in generated_files.iter() {
-        if std::fs::metadata(file).is_ok() {
-            std::fs::remove_file(file)?;
+        let path = base_path.as_ref().join(file);
+        if std::fs::metadata(&path).is_ok() {
+            std::fs::remove_file(path)?;
         }
     }
 
     for dir in generated_dirs.iter() {
-        if std::fs::metadata(dir).is_ok() {
-            std::fs::remove_dir_all(dir)?;
+        let path = base_path.as_ref().join(dir);
+        if std::fs::metadata(&path).is_ok() {
+            std::fs::remove_dir_all(path)?;
         }
     }
 
