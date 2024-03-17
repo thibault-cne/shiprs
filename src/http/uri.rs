@@ -4,7 +4,7 @@ use serde::Serialize;
 
 use crate::error::Result;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Uri<'a> {
     encoded: Cow<'a, str>,
 }

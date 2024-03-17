@@ -5,6 +5,7 @@ use serde::Serialize;
 use super::uri::Uri;
 use crate::http::Method;
 
+#[derive(Debug, Clone)]
 pub struct Request<'a, B>
 where
     B: Serialize,
@@ -50,10 +51,14 @@ where
             .join("\r\n");
         write!(
             f,
-            "{} {} HTTP/1.1\r\n{}\r\n\r\n",
+            "{} {} HTTP/1.1\r\n{}\r\n\r\n{}",
             self.method,
             self.uri.as_ref(),
-            headers
+            headers,
+            self.body
+                .as_ref()
+                .map(|b| serde_json::to_string(&b).unwrap())
+                .unwrap_or_default()
         )
     }
 }
@@ -138,8 +143,13 @@ where
     }
 
     /// Build the request.
-    pub fn build(self) -> Request<'a, B> {
+    pub fn build(mut self) -> Request<'a, B> {
         let uri = Uri::parse(self.path, self.query).unwrap();
+        if self.body.is_some() {
+            let body = serde_json::to_string(&self.body).unwrap();
+            self.headers
+                .insert("Content-Length".to_string(), body.len().to_string());
+        }
 
         Request {
             method: self.method,
@@ -156,7 +166,7 @@ mod tests {
 
     macro_rules! assert_request_uri {
         ($req:expr, $expected:literal) => {{
-            let req_build = $req.build();
+            let req_build = $req.clone().build();
             let req_uri = req_build.split("\r\n").next();
             assert_eq!(req_uri, Some($expected));
         }};
@@ -209,5 +219,47 @@ mod tests {
         assert_eq!(request.method(), Method::Get);
         assert_eq!(request.uri(), "/containers/json?all=true&limit=10");
         assert_request_uri!(request, "GET /containers/json?all=true&limit=10 HTTP/1.1");
+    }
+
+    #[derive(Debug, Serialize, PartialEq, Clone)]
+    struct TestBody {
+        limit: i32,
+        test: String,
+    }
+
+    #[test]
+    fn build_with_body() {
+        let body = TestBody {
+            limit: 10,
+            test: "test".to_string(),
+        };
+        let json = serde_json::to_string(&body).unwrap();
+        let len = json.len();
+
+        let request = RequestBuilder::<(), TestBody>::post("/containers/create")
+            .body(body)
+            .build();
+
+        assert_eq!(request.method(), Method::Post);
+        assert_eq!(request.uri(), "/containers/create");
+        assert_request_uri!(request, "POST /containers/create HTTP/1.1");
+
+        assert_eq!(
+            request.headers.get("Content-Type").unwrap(),
+            "application/json"
+        );
+        assert_eq!(
+            request.headers.get("Content-Length").unwrap(),
+            &len.to_string()
+        );
+
+        let end = request
+            .build()
+            .chars()
+            .rev()
+            .take(json.len())
+            .collect::<String>();
+        let expected_end = r#"{"limit":10,"test":"test"}"#.chars().rev().collect::<String>();
+        assert_eq!(end, expected_end);
     }
 }
