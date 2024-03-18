@@ -1,3 +1,4 @@
+[![build & test](https://github.com/thibault-cne/shiprs/actions/workflows/rust.yml/badge.svg)](https://github.com/thibault-cne/shiprs/actions/workflows/rust.yml)
 [![crates.io](https://img.shields.io/crates/v/shiprs.svg)](https://crates.io/crates/shiprs)
 [![license](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![circleci](https://circleci.com/gh/thibault-cne/shiprs.svg?style=shield)](https://circleci.com/gh/thibault-cne/shiprs)
