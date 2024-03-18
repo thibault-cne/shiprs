@@ -1,6 +1,6 @@
 [![crates.io](https://img.shields.io/crates/v/shiprs.svg)](https://crates.io/crates/shiprs)
 [![license](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![circleci](https://dl.circleci.com/status-badge/img/circleci/YRgDpTqJybofq8f7swF863/GbC9CB3nQ6g11T4SiSczRC/tree/main.svg?style=svg)](https://dl.circleci.com/status-badge/redirect/circleci/YRgDpTqJybofq8f7swF863/GbC9CB3nQ6g11T4SiSczRC/tree/main)
+[![circleci](https://circleci.com/gh/thibault-cne/shiprs.svg?style=shield)](https://circleci.com/gh/thibault-cne/shiprs)
 [![appveyor](https://ci.appveyor.com/api/projects/status/82p07asa7l0gv3t0?svg=true)](https://ci.appveyor.com/project/thibault-cne/shiprs)
 [![docs](https://docs.rs/shiprs/badge.svg)](https://docs.rs/shiprs/)
 
