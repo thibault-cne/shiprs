@@ -34,6 +34,7 @@ fn cleanup<P: AsRef<Path>>(base_path: P) {
         "api",
         "examples",
         ".swagger-codegen",
+        ".openapi-generator",
     ];
 
     let files = [".swagger-codegen-ignore"];
