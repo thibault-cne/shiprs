@@ -34,7 +34,7 @@ jobs:
       - checkout
       - setup_remote_docker
       - run: docker build -t shiprs .
-      - run: docker run -ti --rm shiprs bash -c "rustup component add rustfmt && cargo fmt -p bollard -- --check --verbose"
+      - run: docker run -ti --rm shiprs bash -c "rustup component add rustfmt && cargo fmt -p shiprs -- --check --verbose"
 
 workflows:
   version: 2
