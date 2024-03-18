@@ -9,6 +9,7 @@ use crate::http::{CR, LF};
 // https://github.com/fristonio/docker.rs
 // with minor changes.
 
+/// An HTTP response.
 #[derive(Debug, Default)]
 pub struct Response<B> {
     status: u16,
@@ -90,13 +91,19 @@ where
             }
             None => body,
         };
-        let body = serde_json::from_slice::<B>(&body)?;
 
-        Ok(Response {
-            status,
-            body,
-            headers,
-        })
+        match status {
+            400..=500 => {
+                let err = serde_json::from_slice::<shiprs_models::models::ErrorResponse>(&body)?;
+                Err(err.into())
+            }
+            200..=299 => Ok(Response {
+                status,
+                body: serde_json::from_slice(&body)?,
+                headers,
+            }),
+            _ => Err(Status.into()),
+        }
     }
 
     /// A helper function to parse_http_reseponse, when the Header Transfer-Encoding

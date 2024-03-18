@@ -114,6 +114,52 @@ impl<'docker> Containers<'docker> {
         Containers { docker }
     }
 
+    /// Create a new container.
+    ///
+    /// # Warning
+    /// In order for the container to be created successfully, the image must be pulled before calling the create method.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// # use shiprs::error::Result;
+    /// use shiprs::Docker;
+    ///
+    /// # fn main() -> Result<()> {
+    /// let docker = Docker::new()?;
+    ///
+    /// let options = shiprs::container::CreateContainerOptions {
+    ///     name: "my_container",
+    ///     ..Default::default()
+    /// };
+    /// let config = shiprs::container::Config {
+    ///     image: Some("hello-world"),
+    ///     cmd: Some(vec!["/hello"]),
+    ///     ..Default::default()
+    /// };
+    ///
+    /// let container = docker.containers().create(Some(options), config)?;
+    /// println!("{:?}", container);
+    /// # Ok(())
+    /// ```
+    pub fn create<O, C>(
+        &self,
+        options: Option<CreateContainerOptions<O>>,
+        config: Config<C>,
+    ) -> Result<ContainerCreateResponse>
+    where
+        O: Into<String> + Serialize,
+        C: Into<String> + Eq + Hash + Serialize,
+    {
+        let url = "/containers/create";
+        let request = RequestBuilder::<CreateContainerOptions<O>, Config<C>>::post(url)
+            .query(options)
+            .body(config)
+            .build();
+        let response = self.docker.request(request)?;
+
+        Ok(response.into_body())
+    }
+
     /// Lists the docker containers.
     /// This corresponds to the `GET /containers/json` endpoint.
     /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerList) for more information.

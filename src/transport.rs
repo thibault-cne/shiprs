@@ -76,6 +76,7 @@ impl Client<UnixStream> {
             }
         }
 
+        crate::debug_print!("{}", String::from_utf8_lossy(&raw_resp));
         Response::<R>::try_from(raw_resp.as_slice())
     }
 }

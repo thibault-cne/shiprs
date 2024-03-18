@@ -1,6 +1,7 @@
 use std::error::Error as StdError;
 
 use serde_json::Error as SerdeJsonError;
+use shiprs_models::models::ErrorResponse;
 
 /// A type alias for `Result<T, Error>`.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -22,6 +23,7 @@ pub(crate) enum ErrorKind {
     Io,
     Unit,
     HttpParsing(HttpParsingErrorKind),
+    Response(ErrorResponse),
     SerdeJson,
     SerdeUrlEncoded,
 }
@@ -85,6 +87,7 @@ impl std::fmt::Display for Error {
             Io => write!(f, "io error: {}", self.source().unwrap()),
             Unit => write!(f, "unit error"),
             HttpParsing(ref kind) => write!(f, "{}: {}", kind, self.source().unwrap()),
+            Response(ref err) => write!(f, "http response error: {}", err.message),
             SerdeJson => write!(f, "serde_json error: {}", self.source().unwrap()),
             SerdeUrlEncoded => write!(f, "serde_urlencoded error: {}", self.source().unwrap()),
         }
@@ -108,6 +111,7 @@ use macros::error_from;
 error_from! {
     with_cause std::io::Error => fn io;
     inner_kind HttpParsingErrorKind => HttpParsing;
+    inner_kind ErrorResponse => Response;
     with_cause SerdeJsonError => SerdeJson;
     with_cause serde_urlencoded::ser::Error => SerdeUrlEncoded;
 }

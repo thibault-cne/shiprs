@@ -1,16 +1,18 @@
 use std::collections::HashMap;
 
-use shiprs::container::ListContainersOption;
+use shiprs::error::Result;
 use shiprs::Docker;
 
 // This example lists all exited containers available on the docker daemon.
-fn main() {
-    let docker = Docker::new().unwrap();
-    let options = ListContainersOption {
+fn main() -> Result<()> {
+    let docker = Docker::new()?;
+    let options = shiprs::container::ListContainersOption {
         all: true,
         filters: HashMap::from([("status", vec!["exited"])]),
         ..Default::default()
     };
-    let containers = docker.containers().list(Some(options));
+    let containers = docker.containers().list(Some(options))?;
     println!("{:?}", containers);
+
+    Ok(())
 }
