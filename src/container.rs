@@ -140,6 +140,7 @@ impl<'docker> Containers<'docker> {
     /// let container = docker.containers().create(Some(options), config)?;
     /// println!("{:?}", container);
     /// # Ok(())
+    /// # }
     /// ```
     pub fn create<O, C>(
         &self,
