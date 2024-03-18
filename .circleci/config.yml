@@ -1,0 +1,45 @@
+---
+version: 2
+
+jobs:
+  doc:
+    docker:
+      - image: docker:25.0.3
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run: docker build -t shiprs .
+      - run: docker run -ti --rm shiprs cargo test --all-features --target x86_64-unknown-linux-gnu --doc
+  clippy:
+    docker:
+      - image: docker:25.0.3
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run: docker build -t shiprs .
+      - run: docker run -ti --rm shiprs bash -c "rustup component add clippy && cargo clippy --all-targets -- -Dwarnings"
+  audit:
+    docker:
+      - image: docker:25.0.3
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run: docker build -t shiprs .
+        # RUSTSEC-2020-0159 https://github.com/chronotope/chrono/issues/602
+      - run: docker run -ti --rm shiprs bash -c "cargo install --locked cargo-audit && cargo audit --deny warnings --ignore=RUSTSEC-2020-0071"
+  fmt:
+    docker:
+      - image: docker:25.0.3
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run: docker build -t shiprs .
+      - run: docker run -ti --rm shiprs bash -c "rustup component add rustfmt && cargo fmt -p bollard -- --check --verbose"
+workflows:
+  version: 2
+  test-image:
+    jobs:
+      - doc
+      - clippy
+      - audit
+      - fmt
