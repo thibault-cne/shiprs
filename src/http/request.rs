@@ -83,10 +83,14 @@ where
     /// Create a new request builder.
     /// Prefer using the `get`, `post`, `put`, `delete`, and `head` methods
     /// to create the right request.
-    fn new<M: Into<Method>>(method: M, path: &'a str) -> Self {
+    fn new<P, M>(method: M, path: P) -> Self
+    where
+        P: Into<&'a str>,
+        M: Into<Method>,
+    {
         RequestBuilder {
             method: method.into(),
-            path,
+            path: path.into(),
             query: None,
             headers: HashMap::from([
                 ("Host".to_string(), crate::API_VERSION.to_string()),
@@ -100,22 +104,34 @@ where
     where
         P: Into<&'a str>,
     {
-        RequestBuilder::new(Method::Get, path.into())
+        RequestBuilder::new(Method::Get, path)
     }
 
-    pub fn post(path: &'a str) -> Self {
+    pub fn post<P>(path: P) -> Self
+    where
+        P: Into<&'a str>,
+    {
         RequestBuilder::new(Method::Post, path)
     }
 
-    pub fn put(path: &'a str) -> Self {
+    pub fn put<P>(path: P) -> Self
+    where
+        P: Into<&'a str>,
+    {
         RequestBuilder::new(Method::Put, path)
     }
 
-    pub fn delete(path: &'a str) -> Self {
+    pub fn delete<P>(path: P) -> Self
+    where
+        P: Into<&'a str>,
+    {
         RequestBuilder::new(Method::Delete, path)
     }
 
-    pub fn head(path: &'a str) -> Self {
+    pub fn head<P>(path: P) -> Self
+    where
+        P: Into<&'a str>,
+    {
         RequestBuilder::new(Method::Head, path)
     }
 
@@ -124,7 +140,7 @@ where
         self
     }
 
-    pub fn header<K, V>(mut self, key: K, value: V) -> Self
+    pub(crate) fn header<K, V>(mut self, key: K, value: V) -> Self
     where
         K: Into<String>,
         V: Into<String>,
