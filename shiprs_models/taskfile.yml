@@ -1,0 +1,14 @@
+---
+version: "3"
+
+tasks:
+  generate:
+    cmds:
+      - echo "generating files..."
+      - mvn clean compiler:compile generate-resources
+      - echo "cleaning up..."
+      - rm -rf target
+      - rm -rf .swagger-codegen
+      - rm .swagger-codegen-ignore
+      - rm -rf api examples src/client src/server
+      - echo "done"
