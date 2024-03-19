@@ -105,6 +105,21 @@ impl<'docker> Container<'docker> {
 }
 
 /// Interface for interacting with docker containers.
+///
+/// # Example
+/// ```no_run
+/// # use shiprs::error::Result;
+/// use shiprs::Docker;
+///
+/// # fn main() -> Result<()> {
+/// let docker = Docker::new()?;
+/// let containers = docker.containers().list(None)?;
+/// for container in containers {
+///    println!("{:?}", container);
+/// }
+/// # Ok(())
+/// # }
+/// ```
 pub struct Containers<'docker> {
     docker: &'docker Docker,
 }
