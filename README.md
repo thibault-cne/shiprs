@@ -16,3 +16,9 @@ This library is strongly inspired by the [shiplift](https://github.com/softprops
 ## Warning
 
 This library is still in development and is not ready for production use.
+
+## Roadmap
+
+- [ ] Implement the Docker Engine API with non-asynchronous calls
+- [ ] Make the http module asynchronous
+- [ ] Implement the Docker Engine API with asynchronous calls using tokio
