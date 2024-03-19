@@ -4,7 +4,7 @@ use shiprs::Docker;
 fn main() -> Result<()> {
     let docker = Docker::new()?;
 
-    let options = shiprs::container::CreateContainerOptions {
+    let options = shiprs::container::ContainerCreateOption {
         name: "my_container",
         ..Default::default()
     };

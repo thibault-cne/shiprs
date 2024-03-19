@@ -61,10 +61,10 @@ impl<'docker> Container<'docker> {
     /// # }
     pub fn inspect(
         &self,
-        options: Option<InspectContainerOptions>,
+        options: Option<ContainerInspectOption>,
     ) -> Result<ContainerInspectResponse> {
         let url = format!("/containers/{}/json", self.id);
-        let request = RequestBuilder::<InspectContainerOptions, ()>::get(&*url)
+        let request = RequestBuilder::<ContainerInspectOption, ()>::get(&*url)
             .query(options)
             .build();
         let response = self.docker.request(request)?;
@@ -93,9 +93,48 @@ impl<'docker> Container<'docker> {
     /// println!("{}", logs);
     /// # Ok(())
     /// # }
-    pub fn logs(&self, options: Option<LogsContainerOptions>) -> Result<String> {
+    pub fn logs(&self, options: Option<ContainerLogsOption>) -> Result<String> {
         let url = format!("/containers/{}/logs", self.id);
-        let request = RequestBuilder::<LogsContainerOptions, ()>::get(&*url)
+        let request = RequestBuilder::<ContainerLogsOption, ()>::get(&*url)
+            .query(options)
+            .build();
+        let response = self.docker.request(request)?;
+
+        Ok(response.into_body())
+    }
+
+    /// List processes running inside the container.
+    /// This corresponds to the `GET /containers/(id)/top` endpoint.
+    /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerTop) for more information.
+    ///
+    /// # Description
+    /// On Unix systems, this is done by running the `ps` command.
+    /// This endpoint is not supported on Windows.
+    ///
+    /// # Parameters
+    /// - `options`: ContainerTopOption, used to provide options to the top method.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use shiprs::error::Result;
+    /// use shiprs::Docker;
+    ///
+    /// # fn main() -> Result<()> {
+    /// let docker = Docker::new().unwrap();
+    /// let top = docker
+    ///     .containers()
+    ///     .get("insert container id here")
+    ///     .top(None)?;
+    /// println!("{:?}", top);
+    /// # Ok(())
+    /// # }
+    #[cfg(feature = "unix-socket")]
+    pub fn top<T>(&self, options: Option<ContainerTopOption<T>>) -> Result<ContainerTopResponse>
+    where
+        T: Serialize + Into<String>,
+    {
+        let url = format!("/containers/{}/top", self.id);
+        let request = RequestBuilder::<ContainerTopOption<T>, ()>::get(&*url)
             .query(options)
             .build();
         let response = self.docker.request(request)?;
@@ -130,11 +169,17 @@ impl<'docker> Containers<'docker> {
     }
 
     /// Create a new container.
+    /// This corresponds to the `POST /containers/create` endpoint.
+    /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerCreate) for more information.
+    ///
+    /// # Parameters
+    /// - `options`: ContainerCreateOption, used to provide options to the create method.
+    /// - `config`: Config, used to provide the configuration for the newly created container.
     ///
     /// # Warning
     /// In order for the container to be created successfully, the image must be pulled before calling the create method.
     ///
-    /// # Examples
+    /// # Example
     /// ```no_run
     /// # use shiprs::error::Result;
     /// use shiprs::Docker;
@@ -159,7 +204,7 @@ impl<'docker> Containers<'docker> {
     /// ```
     pub fn create<O, C>(
         &self,
-        options: Option<CreateContainerOptions<O>>,
+        options: Option<ContainerCreateOption<O>>,
         config: Config<C>,
     ) -> Result<ContainerCreateResponse>
     where
@@ -167,7 +212,7 @@ impl<'docker> Containers<'docker> {
         C: Into<String> + Eq + Hash + Serialize,
     {
         let url = "/containers/create";
-        let request = RequestBuilder::<CreateContainerOptions<O>, Config<C>>::post(url)
+        let request = RequestBuilder::<ContainerCreateOption<O>, Config<C>>::post(url)
             .query(options)
             .body(config)
             .build();
@@ -196,12 +241,12 @@ impl<'docker> Containers<'docker> {
     /// println!("{:?}", containers);
     /// # Ok(())
     /// # }
-    pub fn list<T>(&self, options: Option<ListContainersOption<T>>) -> Result<Vec<ContainerSummary>>
+    pub fn list<T>(&self, options: Option<ContainerListOption<T>>) -> Result<Vec<ContainerSummary>>
     where
         T: Into<String> + std::hash::Hash + Eq + Serialize,
     {
         let url = "/containers/json";
-        let request = RequestBuilder::<ListContainersOption<T>, ()>::get(url)
+        let request = RequestBuilder::<ContainerListOption<T>, ()>::get(url)
             .query(options)
             .build();
         let response = self.docker.request(request)?;
@@ -233,14 +278,14 @@ impl<'docker> Containers<'docker> {
 /// This struct corresponds to the param options of the `GET /containers/(id)/json` endpoint.
 /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerInspect) for more information.
 #[derive(Default, Serialize)]
-pub struct InspectContainerOptions {
+pub struct ContainerInspectOption {
     /// Return the size of container as fields `SizeRw` and `SizeRootFs`.
     pub size: bool,
 }
 
-impl From<bool> for InspectContainerOptions {
+impl From<bool> for ContainerInspectOption {
     fn from(size: bool) -> Self {
-        InspectContainerOptions { size }
+        ContainerInspectOption { size }
     }
 }
 
@@ -271,7 +316,7 @@ impl From<bool> for InspectContainerOptions {
 /// };
 /// ```
 #[derive(Default, Serialize)]
-pub struct ListContainersOption<T>
+pub struct ContainerListOption<T>
 where
     T: Into<String> + Eq + std::hash::Hash + Serialize,
 {
@@ -306,7 +351,7 @@ where
 /// This struct corresponds to the param options of the `GET /containers/(id)/logs` endpoint.
 /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerLogs) for more information.
 #[derive(Serialize)]
-pub struct LogsContainerOptions {
+pub struct ContainerLogsOption {
     /// Keep connection after returning logs.
     pub follow: bool,
     /// Return logs from `stdout`.
@@ -324,9 +369,9 @@ pub struct LogsContainerOptions {
     pub tail: String,
 }
 
-impl Default for LogsContainerOptions {
+impl Default for ContainerLogsOption {
     fn default() -> Self {
-        LogsContainerOptions {
+        ContainerLogsOption {
             follow: false,
             stdout: false,
             stderr: false,
@@ -342,7 +387,7 @@ impl Default for LogsContainerOptions {
 /// This struct corresponds to the param options of the `POST /containers/create` endpoint.
 /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerCreate) for more information.
 #[derive(Default, Serialize)]
-pub struct CreateContainerOptions<T>
+pub struct ContainerCreateOption<T>
 where
     T: Into<String> + Serialize,
 {
@@ -523,4 +568,12 @@ impl From<ContainerConfig> for Config<String> {
             networking_config: None,
         }
     }
+}
+
+#[derive(Default, Serialize)]
+pub struct ContainerTopOption<T>
+where
+    T: Serialize + Into<String>,
+{
+    pub ps_args: Option<T>,
 }
