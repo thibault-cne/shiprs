@@ -14,7 +14,6 @@ members = ["shiprs_models"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-chrono = { version = "0.4.34", features = ["serde"], optional = true }
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.114"
 serde_urlencoded = "0.7.1"
@@ -23,4 +22,5 @@ shiprs_models = { path = "shiprs_models" }
 [features]
 default = ["unix-socket", "chrono"]
 unix-socket = []
-chrono = ["dep:chrono"]
+chrono = ["shiprs_models/chrono"]
+time = ["shiprs_models/time"]
