@@ -1,6 +1,4 @@
 pub mod container;
-#[cfg(feature = "chrono")]
-mod datetime;
 mod docker;
 pub mod error;
 mod http;
