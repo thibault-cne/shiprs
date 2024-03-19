@@ -124,7 +124,7 @@ impl<'docker> Container<'docker> {
     /// let top = docker
     ///     .containers()
     ///     .get("insert container id here")
-    ///     .top(None)?;
+    ///     .top::<&str>(None)?;
     /// println!("{:?}", top);
     /// # Ok(())
     /// # }
@@ -152,7 +152,7 @@ impl<'docker> Container<'docker> {
 ///
 /// # fn main() -> Result<()> {
 /// let docker = Docker::new()?;
-/// let containers = docker.containers().list(None)?;
+/// let containers = docker.containers().list::<&str>(None)?;
 /// for container in containers {
 ///    println!("{:?}", container);
 /// }
@@ -187,7 +187,7 @@ impl<'docker> Containers<'docker> {
     /// # fn main() -> Result<()> {
     /// let docker = Docker::new()?;
     ///
-    /// let options = shiprs::container::CreateContainerOptions {
+    /// let options = shiprs::container::ContainerCreateOption {
     ///     name: "my_container",
     ///     ..Default::default()
     /// };
@@ -296,10 +296,10 @@ impl From<bool> for ContainerInspectOption {
 /// ```rust
 /// use std::collections::HashMap;
 ///
-/// use shiprs::container::ListContainersOption;
+/// use shiprs::container::ContainerListOption;
 ///
 /// // Get all running containers
-/// let options = ListContainersOption {
+/// let options = ContainerListOption {
 ///     all: true,
 ///     filters: HashMap::from([("status", vec!["running"])]),
 ///     ..Default::default()
@@ -307,10 +307,10 @@ impl From<bool> for ContainerInspectOption {
 /// ```
 ///
 /// ```rust
-/// use shiprs::container::ListContainersOption;
+/// use shiprs::container::ContainerListOption;
 ///
 /// // Get all containers
-/// let options: ListContainersOption<&str> = ListContainersOption {
+/// let options: ContainerListOption<&str> = ContainerListOption {
 ///    all: true,
 ///   ..Default::default()
 /// };
