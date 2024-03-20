@@ -141,6 +141,34 @@ impl<'docker> Container<'docker> {
 
         Ok(response.into_body())
     }
+
+    /// Export a container
+    /// This corresponds to the `GET /containers/(id)/export` endpoint.
+    /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerExport) for more information.
+    ///
+    /// # Description
+    /// Export the contents of a container as a tarball.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use shiprs::error::Result;
+    /// use shiprs::Docker;
+    ///
+    /// # fn main() -> Result<()> {
+    /// let docker = Docker::new().unwrap();
+    /// docker
+    ///     .containers()
+    ///     .get("insert container id here")
+    ///     .export()?;
+    /// # Ok(())
+    /// # }
+    pub fn export(&self) -> Result<()> {
+        let url = format!("/containers/{}/export", self.id);
+        let request = RequestBuilder::<(), ()>::get(&*url).build();
+        let _ = self.docker.request::<(), ()>(request)?;
+
+        Ok(())
+    }
 }
 
 /// Interface for interacting with docker containers.
