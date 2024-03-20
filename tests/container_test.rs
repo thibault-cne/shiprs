@@ -20,7 +20,7 @@ fn test_list_containers() -> Result<(), Error> {
     assert_ne!(containers.len(), 0);
     assert!(containers
         .iter()
-        .any(|c| c.image.as_ref().unwrap() == "hello-world"));
+        .any(|c| c.image.as_ref().unwrap() == &image));
 
     Ok(())
 }
