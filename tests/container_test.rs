@@ -5,7 +5,7 @@ use common::*;
 
 #[test]
 fn test_list_containers() -> Result<(), Error> {
-    let docker = Docker::new().unwrap();
+    let docker = Docker::new()?;
 
     create_container(&docker, "hello-world", "test_list_containers")?;
 

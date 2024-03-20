@@ -33,4 +33,4 @@ docker push localhost:8080/helloworld
 
 # Run tests
 docker swarm init
-docker run -e REGISTRY_PASSWORD -e REGISTRY_HTTP_ADDR=localhost:8080 -v /var/run/docker.sock.raw:/var/run/docker.sock -ti --rm shiprs cargo test $@ -- --test-threads 1
+docker run -e REGISTRY_PASSWORD -e REGISTRY_HTTP_ADDR=localhost:8080 -v /var/run/docker.sock:/var/run/docker.sock -ti --rm shiprs cargo test $@ -- --test-threads 1
