@@ -7,7 +7,8 @@ use common::*;
 fn test_list_containers() -> Result<(), Error> {
     let docker = Docker::new()?;
 
-    create_container(&docker, "hello-world", "test_list_containers")?;
+    let image = format!("{}hello-world:linux", registry_http_addr());
+    create_container(&docker, &image, "test_list_containers")?;
 
     let options = ContainerListOption::<String> {
         all: true,

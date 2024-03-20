@@ -20,3 +20,14 @@ pub fn create_container(
 
     Ok(())
 }
+
+pub fn registry_http_addr() -> String {
+    if std::env::var("DISABLE_REGISTRY").is_ok() {
+        String::new()
+    } else {
+        format!(
+            "{}/",
+            std::env::var("REGISTRY_HTTP_ADDR").unwrap_or_else(|_| "localhost:5000".to_string())
+        )
+    }
+}
