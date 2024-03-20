@@ -178,7 +178,7 @@ impl<'docker> Container<'docker> {
         let _ = self.docker.request::<(), ()>(request)?;
 
         Ok(())
-  }
+    }
 
     /// let changes = docker
     ///     .containers()
