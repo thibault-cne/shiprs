@@ -52,3 +52,4 @@ workflows:
       - clippy
       - audit
       - fmt
+      - unix
