@@ -43,6 +43,7 @@ jobs:
       - setup_remote_docker
       - run: docker build -t shiprs .
       - run: resources/dockerfiles/bin/run_integration_tests.sh --tests
+
 workflows:
   version: 2
   tests:
