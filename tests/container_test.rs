@@ -5,9 +5,10 @@ use common::*;
 
 #[test]
 fn test_list_containers() -> Result<(), Error> {
-    create_container("hello-world", "test_list_containers")?;
-
     let docker = Docker::new().unwrap();
+
+    create_container(&docker, "hello-world", "test_list_containers")?;
+
     let options = ContainerListOption::<String> {
         all: true,
         ..Default::default()
@@ -19,8 +20,6 @@ fn test_list_containers() -> Result<(), Error> {
     assert!(containers
         .iter()
         .any(|c| c.image.as_ref().unwrap() == "hello-world"));
-
-    remove_container("test_list_containers")?;
 
     Ok(())
 }

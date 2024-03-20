@@ -1,19 +1,22 @@
-use std::process::Command;
-
+use shiprs::container::{Config, ContainerCreateOption};
 use shiprs::error::Error;
+use shiprs::Docker;
 
-pub fn create_container(image_name: &str, container_name: &str) -> Result<(), Error> {
-    let _ = Command::new("docker")
-        .args(["create", "--name", container_name, image_name])
-        .output()?;
+pub fn create_container(
+    docker: &Docker,
+    image_name: &str,
+    container_name: &str,
+) -> Result<(), Error> {
+    let option = ContainerCreateOption {
+        name: container_name.to_string(),
+        ..Default::default()
+    };
+    let config = Config {
+        image: Some(image_name),
+        ..Default::default()
+    };
 
-    Ok(())
-}
-
-pub fn remove_container(container_name: &str) -> Result<(), Error> {
-    let _ = Command::new("docker")
-        .args(["rm", "-f", container_name])
-        .output()?;
+    let _ = docker.containers().create(Some(option), config)?;
 
     Ok(())
 }
