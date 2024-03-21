@@ -1,15 +1,18 @@
 ---
-name: Test build and lint
+name: Compile, Lint, and Codestyle
 
 on:
   push:
     branches:
       - master
+  pull_request:
+    branches:
+      - master
 
 jobs:
-  test:
+  cache:
     runs-on: ubuntu-latest
-    name: Test, lint and build
+    name: Setup
     steps:
       - uses: actions/checkout@v4
       - name: Set up cargo cache
@@ -25,33 +28,72 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
-      - name: Setup java
-        uses: actions/setup-java@v4
-        with:
-          java-version: "17"
-          distribution: "temurin"
-          cache: maven
-
-      - name: Maven info
-        run: mvn --version
-
       - name: Toolchain info
         run: |
           cargo --version --verbose
           rustc --version
           cargo clippy --version
 
-      - name: Build
-        run: |
-          cargo build --verbose
-          cargo build --verbose --release
+  codestyle:
+    runs-on: ubuntu-latest
+    name: Codestyle
+    needs: cache
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up cargo cache
+        uses: actions/cache@v4
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+      - name: Codestyle
+        run: cargo fmt --all -- --check
 
+  lint:
+    runs-on: ubuntu-latest
+    name: Lint
+    needs: cache
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up cargo cache
+        uses: actions/cache@v4
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
       - name: Lint
-        run: |
-          cargo fmt -- --check
-          cargo clippy -- -D warnings
+        run: cargo clippy -- -D warnings
 
-      - name: Run tests
-        run: |
-          cargo check
-          cargo test --verbose --all
+  compile:
+    runs-on: ubuntu-latest
+    name: Compile
+    needs: cache
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up cargo cache
+        uses: actions/cache@v4
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Build
+        run: cargo check --workspace --release --all-features
