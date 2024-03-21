@@ -1,4 +1,4 @@
-use shiprs::container::{Config, ContainerCreateOption, ContainerRemoveOption};
+use shiprs::container::{Config, ContainerCreateOption};
 use shiprs::error::Error;
 use shiprs::Docker;
 
@@ -22,15 +22,7 @@ pub fn create_container(
 }
 
 pub fn remove_container(docker: &Docker, container_name: &str) -> Result<(), Error> {
-    let options = ContainerRemoveOption {
-        force: Some(true),
-        ..Default::default()
-    };
-
-    docker
-        .containers()
-        .get(container_name)
-        .remove(Some(options))
+    docker.containers().get(container_name).remove(None)
 }
 
 pub fn registry_http_addr() -> String {
