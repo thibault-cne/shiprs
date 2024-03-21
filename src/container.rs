@@ -196,6 +196,37 @@ impl<'docker> Container<'docker> {
 
         Ok(response.into_body())
     }
+
+    /// Remove a container.
+    /// This corresponds to the `DELETE /containers/(id)` endpoint.
+    /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerDelete) for more information.
+    ///
+    /// # Parameters
+    /// - `options`: ContainerDeleteOptions, used to provide options to the delete method.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use shiprs::error::Result;
+    /// use shiprs::Docker;
+    ///
+    /// # fn main() -> Result<()> {
+    /// let docker = Docker::new().unwrap();
+    /// docker
+    ///     .containers()
+    ///     .get("insert container id here")
+    ///     .delete(None)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn remove(&self, options: Option<ContainerRemoveOptions>) -> Result<()> {
+        let url = format!("/containers/{}", self.id);
+        let request = RequestBuilder::<ContainerRemoveOptions, ()>::delete(&*url)
+            .query(options)
+            .build();
+        let _ = self.docker.request::<(), ()>(request)?;
+
+        Ok(())
+    }
 }
 
 /// Interface for interacting with docker containers.
@@ -631,4 +662,19 @@ where
     T: Serialize + Into<String>,
 {
     pub ps_args: Option<T>,
+}
+
+#[derive(Default, Serialize)]
+pub struct ContainerRemoveOptions {
+    /// If the container is running, kill it before removing it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub force: Option<bool>,
+
+    /// Remove the volumes associated with the container.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub v: Option<bool>,
+
+    /// Remove the specified link associated with the container.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub link: Option<bool>,
 }

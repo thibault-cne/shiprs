@@ -4,11 +4,11 @@ mod common;
 use common::*;
 
 #[test]
-fn test_list_containers() -> Result<(), Error> {
+fn integration_test_list_containers() -> Result<(), Error> {
     let docker = Docker::new()?;
 
     let image = format!("{}hello-world:linux", registry_http_addr());
-    create_container(&docker, &image, "test_list_containers")?;
+    create_container(&docker, &image, "integration_test_list_containers")?;
 
     let options = ContainerListOption::<String> {
         all: true,
@@ -21,6 +21,8 @@ fn test_list_containers() -> Result<(), Error> {
     assert!(containers
         .iter()
         .any(|c| c.image.as_ref().unwrap() == &image));
+
+    remove_container(&docker, "integration_test_list_containers")?;
 
     Ok(())
 }
