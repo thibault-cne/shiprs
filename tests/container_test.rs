@@ -5,9 +5,11 @@ use common::*;
 
 #[test]
 fn test_list_containers() -> Result<(), Error> {
-    create_container("hello-world", "test_list_containers")?;
+    let docker = Docker::new()?;
 
-    let docker = Docker::new().unwrap();
+    let image = format!("{}hello-world:linux", registry_http_addr());
+    create_container(&docker, &image, "test_list_containers")?;
+
     let options = ContainerListOption::<String> {
         all: true,
         ..Default::default()
@@ -18,9 +20,7 @@ fn test_list_containers() -> Result<(), Error> {
     assert_ne!(containers.len(), 0);
     assert!(containers
         .iter()
-        .any(|c| c.image.as_ref().unwrap() == "hello-world"));
-
-    remove_container("test_list_containers")?;
+        .any(|c| c.image.as_ref().unwrap() == &image));
 
     Ok(())
 }
