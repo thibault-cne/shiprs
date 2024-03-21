@@ -1,4 +1,4 @@
-use shiprs::container::{Config, ContainerCreateOption, ContainerRemoveOptions};
+use shiprs::container::{Config, ContainerCreateOption, ContainerRemoveOption};
 use shiprs::error::Error;
 use shiprs::Docker;
 
@@ -22,7 +22,7 @@ pub fn create_container(
 }
 
 pub fn remove_container(docker: &Docker, container_name: &str) -> Result<(), Error> {
-    let options = ContainerRemoveOptions {
+    let options = ContainerRemoveOption {
         force: Some(true),
         ..Default::default()
     };

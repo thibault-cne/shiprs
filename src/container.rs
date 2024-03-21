@@ -214,13 +214,13 @@ impl<'docker> Container<'docker> {
     /// docker
     ///     .containers()
     ///     .get("insert container id here")
-    ///     .delete(None)?;
+    ///     .remove(None)?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn remove(&self, options: Option<ContainerRemoveOptions>) -> Result<()> {
+    pub fn remove(&self, options: Option<ContainerRemoveOption>) -> Result<()> {
         let url = format!("/containers/{}", self.id);
-        let request = RequestBuilder::<ContainerRemoveOptions, ()>::delete(&*url)
+        let request = RequestBuilder::<ContainerRemoveOption, ()>::delete(&*url)
             .query(options)
             .build();
         let _ = self.docker.request::<(), ()>(request)?;
@@ -665,7 +665,7 @@ where
 }
 
 #[derive(Default, Serialize)]
-pub struct ContainerRemoveOptions {
+pub struct ContainerRemoveOption {
     /// If the container is running, kill it before removing it.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub force: Option<bool>,
