@@ -39,7 +39,7 @@ fn integration_test_inspect_container() -> Result<(), Error> {
         .get("integration_test_inspect_container")
         .inspect(None)?;
 
-    assert_eq!(container.image.unwrap(), image);
+    assert_eq!(container.config.unwrap().image.unwrap(), image);
     assert_eq!(
         container.name.unwrap(),
         "integration_test_inspect_container"
