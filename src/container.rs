@@ -69,7 +69,7 @@ impl<'docker> Container<'docker> {
             .build();
         let response = self.docker.request(request)?;
 
-        Ok(response.into_body())
+        Ok(response.into_body().unwrap())
     }
 
     /// Retrieves the logs of the docker container.
@@ -100,7 +100,7 @@ impl<'docker> Container<'docker> {
             .build();
         let response = self.docker.request(request)?;
 
-        Ok(response.into_body())
+        Ok(response.into_body().unwrap())
     }
 
     /// List processes running inside the container.
@@ -139,7 +139,7 @@ impl<'docker> Container<'docker> {
             .build();
         let response = self.docker.request(request)?;
 
-        Ok(response.into_body())
+        Ok(response.into_body().unwrap())
     }
 
     /// Export a container
@@ -194,7 +194,38 @@ impl<'docker> Container<'docker> {
         let request = RequestBuilder::<(), ()>::get(&*url).build();
         let response = self.docker.request(request)?;
 
-        Ok(response.into_body())
+        Ok(response.into_body().unwrap())
+    }
+
+    /// Remove a container.
+    /// This corresponds to the `DELETE /containers/(id)` endpoint.
+    /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerDelete) for more information.
+    ///
+    /// # Parameters
+    /// - `options`: ContainerDeleteOptions, used to provide options to the delete method.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use shiprs::error::Result;
+    /// use shiprs::Docker;
+    ///
+    /// # fn main() -> Result<()> {
+    /// let docker = Docker::new().unwrap();
+    /// docker
+    ///     .containers()
+    ///     .get("insert container id here")
+    ///     .remove(None)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn remove(&self, options: Option<ContainerRemoveOption>) -> Result<()> {
+        let url = format!("/containers/{}", self.id);
+        let request = RequestBuilder::<ContainerRemoveOption, ()>::delete(&*url)
+            .query(options)
+            .build();
+        let _ = self.docker.request::<(), ()>(request)?;
+
+        Ok(())
     }
 }
 
@@ -273,7 +304,7 @@ impl<'docker> Containers<'docker> {
             .build();
         let response = self.docker.request(request)?;
 
-        Ok(response.into_body())
+        Ok(response.into_body().unwrap())
     }
 
     /// Lists the docker containers.
@@ -306,7 +337,7 @@ impl<'docker> Containers<'docker> {
             .build();
         let response = self.docker.request(request)?;
 
-        Ok(response.into_body())
+        Ok(response.into_body().unwrap())
     }
 
     /// Get a container by id.
@@ -631,4 +662,19 @@ where
     T: Serialize + Into<String>,
 {
     pub ps_args: Option<T>,
+}
+
+#[derive(Default, Serialize)]
+pub struct ContainerRemoveOption {
+    /// If the container is running, kill it before removing it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub force: Option<bool>,
+
+    /// Remove the volumes associated with the container.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub v: Option<bool>,
+
+    /// Remove the specified link associated with the container.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub link: Option<bool>,
 }

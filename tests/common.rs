@@ -21,6 +21,10 @@ pub fn create_container(
     Ok(())
 }
 
+pub fn remove_container(docker: &Docker, container_name: &str) -> Result<(), Error> {
+    docker.containers().get(container_name).remove(None)
+}
+
 pub fn registry_http_addr() -> String {
     if std::env::var("DISABLE_REGISTRY").is_ok() {
         String::new()

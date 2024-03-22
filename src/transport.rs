@@ -54,6 +54,7 @@ impl Client<UnixStream> {
         for<'de> R: Deserialize<'de>,
     {
         let mut socket = self.socket.try_clone()?;
+        socket.set_read_timeout(Some(std::time::Duration::new(1, 0)))?;
 
         let buf = req.into_bytes();
         socket.write_all(&buf)?;
@@ -61,7 +62,11 @@ impl Client<UnixStream> {
         let mut buf: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
         let mut raw_resp = Vec::new();
         loop {
-            let n = socket.read(&mut buf[..])?;
+            let n = match socket.read(&mut buf[..]) {
+                Ok(n) => n,
+                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => 0,
+                Err(e) => return Err(e.into()),
+            };
 
             buf.iter().take(n).for_each(|b| raw_resp.push(*b));
 
