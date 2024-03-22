@@ -73,31 +73,35 @@ where
             .map_or(false, |enc| enc == "chunked")
         {
             BodyKind::Chunked
+        } else if let Some(length_s) = headers.get("Content-Length") {
+            let length = length_s
+                .parse::<usize>()
+                .map_err::<Error, _>(|_| ContentLength.into())?;
+            BodyKind::Length(length)
         } else {
             BodyKind::Unsupported
         };
 
-        match body_kind {
-            BodyKind::Empty => Ok(Status::Complete(Response {
-                version,
-                status,
-                reason,
-                headers,
-                body: None,
-            })),
+        let body = match body_kind {
+            BodyKind::Empty => None,
             BodyKind::Chunked => {
                 let body = complete!(parse_chunked_body(&mut bytes));
-                let body = Some(serde_json::from_slice::<B>(&body).map_err(Error::from)?);
-                Ok(Status::Complete(Response {
-                    version,
-                    status,
-                    reason,
-                    headers,
-                    body,
-                }))
+                Some(serde_json::from_slice::<B>(&body).map_err(Error::from)?)
             }
-            BodyKind::Unsupported => Err(UnsupportedBodyEncoding.into()),
-        }
+            BodyKind::Length(length) => {
+                let body = complete!(parse_length_body(&mut bytes, length));
+                Some(serde_json::from_slice::<B>(&body).map_err(Error::from)?)
+            }
+            BodyKind::Unsupported => return Err(UnsupportedBodyEncoding.into()),
+        };
+
+        Ok(Status::Complete(Response {
+            version,
+            status,
+            reason,
+            headers,
+            body,
+        }))
     }
 }
 
@@ -276,9 +280,24 @@ fn parse_chunked_body(bytes: &mut Bytes) -> Result<Status<Vec<u8>>> {
     }
 }
 
+#[inline]
+fn parse_length_body(bytes: &mut Bytes, length: usize) -> Result<Status<Vec<u8>>> {
+    if bytes.len() < length {
+        return Err(BodyLength.into());
+    }
+
+    // SAFETY: it's safe to advance the bytes iterator by `length` bytes, because
+    // the length was validated to be a valid length and the bytes iterator is guaranteed
+    // to have at least `length` bytes left.
+    unsafe { bytes.advance(length) };
+
+    Ok(Status::Complete(bytes.slice().to_vec()))
+}
+
 enum BodyKind {
     Chunked,
     Empty,
+    Length(usize),
     Unsupported,
 }
 
@@ -397,7 +416,26 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_respons_with_body() -> Result<()> {
+    fn test_parse_length_body() -> Result<()> {
+        let bytes = b"Hello, World!";
+        let mut bytes = Bytes::new(bytes);
+
+        let result = parse_length_body(&mut bytes, 13)?;
+
+        match result {
+            Status::Complete(body) => {
+                assert_eq!(body, b"Hello, World!");
+            }
+            Status::Partial => {
+                panic!("Expected complete result");
+            }
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_respons_with_chunked_body() -> Result<()> {
         let response = b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nTransfer-Encoding: chunked\r\n\r\n5\r\n\"Wiki\r\n7\r\npedia i\r\nA\r\nn chunks.\"\r\n0\r\n\r\n";
 
         let result = Response::<String>::parse(response)?;
@@ -416,6 +454,35 @@ mod tests {
                     Some(&"chunked".to_string())
                 );
                 assert_eq!(response.body, Some("Wikipedia in chunks.".to_string()));
+            }
+            Status::Partial => {
+                panic!("Expected complete result");
+            }
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_response_with_length_body() -> Result<()> {
+        let response = b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 15\r\n\r\n\"Hello, World!\"";
+
+        let result = Response::<String>::parse(response)?;
+
+        match result {
+            Status::Complete(response) => {
+                assert_eq!(response.version, HttpVersion::Http1_1);
+                assert_eq!(response.status, 200);
+                assert_eq!(response.reason, "OK");
+                assert_eq!(
+                    response.headers.get("Content-Type"),
+                    Some(&"text/plain".to_string())
+                );
+                assert_eq!(
+                    response.headers.get("Content-Length"),
+                    Some(&"15".to_string())
+                );
+                assert_eq!(response.body, Some("Hello, World!".to_string()));
             }
             Status::Partial => {
                 panic!("Expected complete result");

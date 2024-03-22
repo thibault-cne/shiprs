@@ -37,8 +37,10 @@ pub(crate) enum HttpParsingErrorKind {
     Header,
     ChunkSize,
     Chunk,
+    ContentLength,
     UnsupportedBodyEncoding,
     NewLine,
+    BodyLength,
 }
 
 impl Error {
@@ -63,6 +65,8 @@ impl std::fmt::Display for HttpParsingErrorKind {
         use HttpParsingErrorKind::*;
 
         match self {
+            BodyLength => f.write_str("invalid body, length mismatch"),
+            ContentLength => f.write_str("invalid content length"),
             NewLine => f.write_str("invalid new line"),
             UnsupportedBodyEncoding => f.write_str("unsupported body encoding"),
             Version => f.write_str("invalid version"),
