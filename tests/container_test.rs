@@ -42,7 +42,7 @@ fn integration_test_inspect_container() -> Result<(), Error> {
     assert_eq!(container.config.unwrap().image.unwrap(), image);
     assert_eq!(
         container.name.unwrap(),
-        "integration_test_inspect_container"
+        "/integration_test_inspect_container"
     );
 
     remove_container(&docker, "integration_test_inspect_container")?;
