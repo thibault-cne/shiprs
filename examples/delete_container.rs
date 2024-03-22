@@ -15,8 +15,9 @@ fn main() -> Result<()> {
         ..Default::default()
     };
 
-    let container = docker.containers().create(Some(options), config)?;
-    println!("{:?}", container);
+    let _ = docker.containers().create(Some(options), config)?;
+
+    docker.containers().get("my_container").remove(None)?;
 
     Ok(())
 }
