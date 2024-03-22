@@ -26,3 +26,26 @@ fn integration_test_list_containers() -> Result<(), Error> {
 
     Ok(())
 }
+
+#[test]
+fn integration_test_inspect_container() -> Result<(), Error> {
+    let docker = Docker::new()?;
+
+    let image = format!("{}hello-world:linux", registry_http_addr());
+    create_container(&docker, &image, "integration_test_inspect_container")?;
+
+    let container = docker
+        .containers()
+        .get("integration_test_inspect_container")
+        .inspect(None)?;
+
+    assert_eq!(container.image.unwrap(), image);
+    assert_eq!(
+        container.name.unwrap(),
+        "integration_test_inspect_container"
+    );
+
+    remove_container(&docker, "integration_test_inspect_container")?;
+
+    Ok(())
+}
