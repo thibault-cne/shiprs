@@ -31,10 +31,14 @@ pub(crate) enum ErrorKind {
 #[derive(Debug)]
 pub(crate) enum HttpParsingErrorKind {
     Response,
-    Header,
+    Version,
     Status,
+    Reason,
+    Header,
     ChunkSize,
     Chunk,
+    UnsupportedBodyEncoding,
+    NewLine,
 }
 
 impl Error {
@@ -59,6 +63,10 @@ impl std::fmt::Display for HttpParsingErrorKind {
         use HttpParsingErrorKind::*;
 
         match self {
+            NewLine => f.write_str("invalid new line"),
+            UnsupportedBodyEncoding => f.write_str("unsupported body encoding"),
+            Version => f.write_str("invalid version"),
+            Reason => f.write_str("invalid reason"),
             Response => f.write_str("invalid response"),
             Header => f.write_str("invalid header"),
             Status => f.write_str("invalid status"),

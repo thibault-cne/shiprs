@@ -69,7 +69,7 @@ impl<'docker> Container<'docker> {
             .build();
         let response = self.docker.request(request)?;
 
-        Ok(response.into_body())
+        Ok(response.into_body().unwrap())
     }
 
     /// Retrieves the logs of the docker container.
@@ -100,7 +100,7 @@ impl<'docker> Container<'docker> {
             .build();
         let response = self.docker.request(request)?;
 
-        Ok(response.into_body())
+        Ok(response.into_body().unwrap())
     }
 
     /// List processes running inside the container.
@@ -139,7 +139,7 @@ impl<'docker> Container<'docker> {
             .build();
         let response = self.docker.request(request)?;
 
-        Ok(response.into_body())
+        Ok(response.into_body().unwrap())
     }
 
     /// Export a container
@@ -194,7 +194,7 @@ impl<'docker> Container<'docker> {
         let request = RequestBuilder::<(), ()>::get(&*url).build();
         let response = self.docker.request(request)?;
 
-        Ok(response.into_body())
+        Ok(response.into_body().unwrap())
     }
 
     /// Remove a container.
@@ -304,7 +304,7 @@ impl<'docker> Containers<'docker> {
             .build();
         let response = self.docker.request(request)?;
 
-        Ok(response.into_body())
+        Ok(response.into_body().unwrap())
     }
 
     /// Lists the docker containers.
@@ -337,7 +337,7 @@ impl<'docker> Containers<'docker> {
             .build();
         let response = self.docker.request(request)?;
 
-        Ok(response.into_body())
+        Ok(response.into_body().unwrap())
     }
 
     /// Get a container by id.
