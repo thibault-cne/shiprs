@@ -180,6 +180,17 @@ impl<'docker> Container<'docker> {
         Ok(())
     }
 
+    /// Get changes on a container’s filesystem
+    /// This corresponds to the `GET /containers/(id)/changes` endpoint.
+    /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerChanges) for more information.
+    ///
+    /// # Description
+    /// Returns which files in a container's filesystem have been added, deleted, or modified.
+    /// The Kind of modification can be one of:
+    /// - 0: Modified ("C")
+    /// - 1: Added ("A")
+    /// - 2: Deleted ("D")
+    ///
     /// let changes = docker
     ///     .containers()
     ///     .get("insert container id here")
