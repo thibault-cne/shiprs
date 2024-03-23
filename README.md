@@ -4,6 +4,7 @@
 [![circleci](https://circleci.com/gh/thibault-cne/shiprs.svg?style=shield)](https://circleci.com/gh/thibault-cne/shiprs)
 [![appveyor](https://ci.appveyor.com/api/projects/status/82p07asa7l0gv3t0?svg=true)](https://ci.appveyor.com/project/thibault-cne/shiprs)
 [![docs](https://docs.rs/shiprs/badge.svg)](https://docs.rs/shiprs/)
+[![rust report card](https://rust-reportcard.xuri.me/badge/github.com/thibault-cne/shiprs)](https://rust-reportcard.xuri.me/report/github.com/thibault-cne/shiprs)
 
 # shiprs
 
