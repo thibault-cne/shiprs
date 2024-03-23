@@ -84,15 +84,21 @@ where
 
         let body = match body_kind {
             BodyKind::Empty => None,
-            BodyKind::Chunked => {
-                let body = complete!(parse_chunked_body(&mut bytes));
-                Some(serde_json::from_slice::<B>(&body).map_err(Error::from)?)
-            }
-            BodyKind::Length(length) => {
-                let body = complete!(parse_length_body(&mut bytes, length));
-                Some(serde_json::from_slice::<B>(&body).map_err(Error::from)?)
-            }
+            BodyKind::Chunked => Some(complete!(parse_chunked_body(&mut bytes))),
+            BodyKind::Length(length) => Some(complete!(parse_length_body(&mut bytes, length))),
             BodyKind::Unsupported => return Err(UnsupportedBodyEncoding.into()),
+        };
+
+        let body = match (body, status) {
+            (Some(body), 200..=399) => {
+                let body = serde_json::from_slice::<B>(&body)?;
+                Some(body)
+            }
+            (Some(body), 400..=599) => {
+                let error = serde_json::from_slice::<shiprs_models::models::ErrorResponse>(&body)?;
+                return Err(error.into());
+            }
+            _ => None,
         };
 
         Ok(Status::Complete(Response {
