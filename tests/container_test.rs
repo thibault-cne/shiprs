@@ -1,4 +1,8 @@
-use shiprs::{container::ListOption, error::Result, Docker};
+use shiprs::{
+    container::{ListOption, RenameOption},
+    error::Result,
+    Docker,
+};
 
 mod common;
 use common::*;
@@ -63,12 +67,7 @@ fn integration_test_start_container() -> Result<()> {
 
     assert!(container.state.unwrap().running.unwrap());
 
-    docker
-        .containers()
-        .get("integration_test_start_container")
-        .stop(None)?;
-
-    remove_container(&docker, "integration_test_start_container")?;
+    remove_daemon(&docker, "integration_test_start_container")?;
 
     Ok(())
 }
@@ -92,6 +91,60 @@ fn integration_test_stop_container() -> Result<()> {
     assert!(!container.state.unwrap().running.unwrap());
 
     remove_container(&docker, "integration_test_stop_container")?;
+
+    Ok(())
+}
+
+#[test]
+fn integration_test_restart_container() -> Result<()> {
+    let docker = Docker::new()?;
+
+    create_daemon(&docker, "integration_test_restart_container")?;
+
+    let container = docker
+        .containers()
+        .get("integration_test_restart_container")
+        .inspect(None)?;
+
+    let start_time = container.state.unwrap().started_at.unwrap();
+
+    docker
+        .containers()
+        .get("integration_test_restart_container")
+        .restart(None)?;
+
+    let container = docker
+        .containers()
+        .get("integration_test_restart_container")
+        .inspect(None)?;
+
+    assert!(container.state.as_ref().unwrap().running.unwrap());
+    assert_ne!(container.state.unwrap().started_at.unwrap(), start_time);
+
+    remove_daemon(&docker, "integration_test_restart_container")?;
+
+    Ok(())
+}
+
+#[test]
+fn integration_test_rename_container() -> Result<()> {
+    let docker = Docker::new()?;
+
+    let image = format!("{}hello-world:linux", registry_http_addr());
+    create_container(&docker, &image, "integration_test_rename_container")?;
+
+    let option = RenameOption {
+        name: "integration_test_rename_container",
+    };
+
+    let container = docker.containers().get("integration_test_rename_container");
+
+    container.rename(option)?;
+    let inspect = container.inspect(None)?;
+
+    assert_eq!(inspect.name.unwrap(), "/integration_test_rename_container");
+
+    remove_container(&docker, "integration_test_rename_container")?;
 
     Ok(())
 }

@@ -38,6 +38,11 @@ pub fn create_daemon(docker: &Docker, container_name: &str) -> Result<()> {
     Ok(())
 }
 
+pub fn remove_daemon(docker: &Docker, container_name: &str) -> Result<()> {
+    docker.containers().get(container_name).stop(None)?;
+    remove_container(docker, container_name)
+}
+
 pub fn remove_container(docker: &Docker, container_name: &str) -> Result<()> {
     docker.containers().get(container_name).remove(None)
 }

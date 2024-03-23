@@ -558,7 +558,7 @@ impl<'docker> Containers<'docker> {
     ///     .get("insert container id here");
     /// # Ok(())
     /// # }
-    pub fn get<T>(&self, id: T) -> Container<T>
+    pub fn get<T>(self, id: T) -> Container<'docker, T>
     where
         T: AsRef<str> + Eq + Hash + Serialize,
     {
