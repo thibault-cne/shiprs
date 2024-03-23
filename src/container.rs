@@ -356,6 +356,46 @@ impl<'docker> Container<'docker> {
 
         Ok(())
     }
+
+    /// Update a container
+    /// This corresponds to the `POST /containers/(id)/update` endpoint.
+    /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerUpdate) for more information.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use shiprs::error::Result;
+    /// use shiprs::Docker;
+    /// use shiprs::container::ContainerUpdateConfig;
+    ///
+    /// # fn main() -> Result<()> {
+    /// let docker = Docker::new().unwrap();
+    /// let config = ContainerUpdateConfig {
+    ///     cpuset_cpus: Some("0,1"),
+    ///     ..Default::default()
+    /// };
+    ///
+    /// docker
+    ///     .containers()
+    ///     .get("insert container id here")
+    ///     .update(config)?;
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn update<C>(&self, config: ContainerUpdateConfig<C>) -> Result<()>
+    where
+        C: Into<String> + Eq + Hash + Serialize,
+    {
+        let url = format!("/containers/{}/update", self.id);
+        let request = RequestBuilder::<(), ContainerUpdateConfig<C>>::post(&*url)
+            .body(config)
+            .build();
+        let _ = self
+            .docker
+            .request::<ContainerUpdateConfig<C>, ()>(request)?;
+
+        Ok(())
+    }
 }
 
 /// Interface for interacting with docker containers.
@@ -843,4 +883,165 @@ pub struct ContainerKillOption {
     /// Signal to send to the container as an integer or string (e.g. `SIGINT`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub signal: Option<String>,
+}
+
+#[derive(Default, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct ContainerUpdateConfig<T>
+where
+    T: Into<String> + Eq + Hash,
+{
+    /// An integer value representing this container's relative CPU weight versus other containers.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpu_shares: Option<i64>,
+
+    /// Memory limit in bytes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory: Option<i64>,
+
+    /// Path to `cgroups` under which the container's `cgroup` is created.
+    /// If the path is not absolute, the path is considered to be relative to the `cgroups` path of the init process.
+    /// Cgroups are created if they do not already exist.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cgroup_parent: Option<T>,
+
+    /// Block IO weight (relative weight) accepts a weight value between 0 and 1000.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub blkio_weight: Option<u16>,
+
+    /// Block IO weight (relative device weight).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub blkio_weight_device: Option<Vec<ResourcesBlkioWeightDevice>>,
+
+    /// Limit read rate (bytes per second) from a device.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub blkio_device_read_bps: Option<Vec<ThrottleDevice>>,
+
+    /// Limit write rate (bytes per second) to a device.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub blkio_device_write_bps: Option<Vec<ThrottleDevice>>,
+
+    /// Limit read rate (IO per second) from a device.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "BlkioDeviceReadIOps")]
+    pub blkio_device_read_iops: Option<Vec<ThrottleDevice>>,
+
+    /// Limit write rate (IO per second) to a device.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "BlkioDeviceWriteIOps")]
+    pub blkio_device_write_iops: Option<Vec<ThrottleDevice>>,
+
+    /// The length of a CPU period in microseconds.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpu_period: Option<i64>,
+
+    /// Microseconds of CPU time that the container can get in a CPU period.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpu_quota: Option<i64>,
+
+    /// The length of a CPU real-time period in microseconds.
+    /// Set to 0 to allocate no time allocated to real-time tasks.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpu_realtime_period: Option<i64>,
+
+    /// The length of a CPU real-time runtime in microseconds.
+    /// Set to 0 to allocate no time allocated to real-time tasks.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpu_realtime_runtime: Option<i64>,
+
+    /// CPUs in which to allow execution (e.g., `0-3`, `0,1`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpuset_cpus: Option<T>,
+
+    /// Memory nodes (MEMs) in which to allow execution (0-3, 0,1).
+    /// Only effective on NUMA systems.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpuset_mems: Option<T>,
+
+    /// A list of devices to add to the container.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub devices: Option<Vec<DeviceMapping>>,
+
+    /// A list of cgroup rules to apply to the container
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_cgroup_rules: Option<Vec<T>>,
+
+    /// A list of requests for devices to be sent to device drivers.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_requests: Option<Vec<DeviceRequest>>,
+
+    /// Hard limit for kernel TCP buffer memory (in bytes).
+    /// Depending on the OCI runtime in use, this option may be ignored.
+    /// It is no longer supported by the default (runc) runtime.
+    ///
+    /// This field is omitted when empty.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kernel_memory_tcp: Option<i64>,
+
+    /// Memory soft limit in bytes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory_reservation: Option<i64>,
+
+    /// Total memory limit (memory + swap). Set as `-1` to enable unlimited swap.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory_swap: Option<i64>,
+
+    /// Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory_swappiness: Option<u8>,
+
+    /// CPU quota in units of 10-9 CPUs.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nano_cpus: Option<i64>,
+
+    /// Disable OOM Killer for the container.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub oom_kill_disable: Option<bool>,
+
+    /// Run an init inside the container that forwards signals and reaps processes.
+    /// This field is omitted if empty, and the default (as configured on the daemon) is used.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub init: Option<bool>,
+
+    /// Tune a container's PIDs limit. Set `0` or `-1` for unlimited, or null to not change.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pids_limit: Option<i64>,
+
+    /// A list of resource limits to set in the container.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ulimits: Option<Vec<ResourcesUlimits>>,
+
+    /// The number of usable CPUs (Windows only).
+    ///
+    /// On Windows Server containers, the processor resource controls are mutually exclusive.
+    /// The order of precedence is `CPUCount` first, then `CPUShares`, and `CPUPercent` last.
+    #[cfg(feature = "windows")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpu_count: Option<i64>,
+
+    /// The usable percentage of the available CPUs (Windows only).
+    ///
+    /// On Windows Server containers, the processor resource controls are mutually exclusive.
+    /// The order of precedence is `CPUCount` first, then `CPUShares`, and `CPUPercent` last.
+    #[cfg(feature = "windows")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpu_percent: Option<i64>,
+
+    /// Maximum IOps for the container system drive (Windows only)
+    #[cfg(feature = "windows")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "IOMaximumIOps")]
+    pub io_maximum_iops: Option<i64>,
+
+    /// Maximum IO in bytes per second for the container system drive (Windows only).
+    #[cfg(feature = "windows")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "IOMaximumBandwidth")]
+    pub io_maximum_bandwidth: Option<i64>,
+
+    /// The behavior to apply when the container exits. The default is not to restart.
+    ///
+    /// An ever increasing delay (double the previous delay, starting at 100ms) is added before each restart to prevent flooding the server.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub restart_policy: Option<RestartPolicy>,
 }
