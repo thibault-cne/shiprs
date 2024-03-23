@@ -63,6 +63,11 @@ fn integration_test_start_container() -> Result<()> {
 
     assert!(container.state.unwrap().running.unwrap());
 
+    docker
+        .containers()
+        .get("integration_test_start_container")
+        .stop(None)?;
+
     remove_container(&docker, "integration_test_start_container")?;
 
     Ok(())
