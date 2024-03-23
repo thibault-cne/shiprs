@@ -18,10 +18,12 @@ use crate::{docker::Docker, error::Result};
 ///
 /// # fn main() -> Result<()> {
 /// let docker = Docker::new().unwrap();
+///
 /// let container = docker
 ///     .containers()
 ///     .get("insert container id here")
 ///     .inspect(None)?;
+///
 /// println!("{:?}", container);
 /// # Ok(())
 /// # }
@@ -148,6 +150,7 @@ where
     ///     .containers()
     ///     .get("insert container id here")
     ///     .changes()?;
+    ///
     /// for change in changes {
     ///   println!("{:?}", change);
     /// }
@@ -179,9 +182,9 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    pub fn remove(&self, options: Option<ContainerRemoveOption>) -> Result<()> {
+    pub fn remove(&self, options: Option<RemoveOption>) -> Result<()> {
         let url = format!("/containers/{}", self.id.as_ref());
-        let request = RequestBuilder::<ContainerRemoveOption, ()>::delete(&*url)
+        let request = RequestBuilder::<RemoveOption, ()>::delete(&*url)
             .query(options)
             .build();
         let _ = self.docker.request::<(), ()>(request)?;
@@ -200,11 +203,11 @@ where
     /// ```no_run
     /// # use shiprs::error::Result;
     /// use shiprs::Docker;
-    /// use shiprs::container::ContainerResizeOption;
+    /// use shiprs::container::ResizeOption;
     ///
     /// # fn main() -> Result<()> {
     /// let docker = Docker::new().unwrap();
-    /// let options = ContainerResizeOption {
+    /// let options = ResizeOption {
     ///     h: 100,
     ///     w: 100,
     /// };
@@ -217,9 +220,9 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    pub fn resize(&self, options: Option<ContainerResizeOption>) -> Result<()> {
+    pub fn resize(&self, options: Option<ResizeOption>) -> Result<()> {
         let url = format!("/containers/{}/resize", self.id.as_ref());
-        let request = RequestBuilder::<ContainerResizeOption, ()>::post(&*url)
+        let request = RequestBuilder::<ResizeOption, ()>::post(&*url)
             .query(options)
             .build();
         let _ = self.docker.request::<(), ()>(request)?;
@@ -247,9 +250,9 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    pub fn start(&self, options: Option<ContainerStartOption>) -> Result<()> {
+    pub fn start(&self, options: Option<StartOption>) -> Result<()> {
         let url = format!("/containers/{}/start", self.id.as_ref());
-        let request = RequestBuilder::<ContainerStartOption, ()>::post(&*url)
+        let request = RequestBuilder::<StartOption, ()>::post(&*url)
             .query(options)
             .build();
         let _ = self.docker.request::<(), ()>(request)?;
@@ -265,11 +268,11 @@ where
     /// ```no_run
     /// # use shiprs::error::Result;
     /// use shiprs::Docker;
-    /// use shiprs::container::ContainerStopOption;
+    /// use shiprs::container::StopOption;
     ///
     /// # fn main() -> Result<()> {
     /// let docker = Docker::new().unwrap();
-    /// let options = ContainerStopOption {
+    /// let options = StopOption {
     ///     t: Some(10),
     ///     ..Default::default()
     /// };
@@ -282,9 +285,9 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    pub fn stop(&self, options: Option<ContainerStopOption>) -> Result<()> {
+    pub fn stop(&self, options: Option<StopOption>) -> Result<()> {
         let url = format!("/containers/{}/stop", self.id.as_ref());
-        let request = RequestBuilder::<ContainerStopOption, ()>::post(&*url)
+        let request = RequestBuilder::<StopOption, ()>::post(&*url)
             .query(options)
             .build();
         let _ = self.docker.request::<(), ()>(request)?;
@@ -300,11 +303,11 @@ where
     /// ```no_run
     /// # use shiprs::error::Result;
     /// use shiprs::Docker;
-    /// use shiprs::container::ContainerRestartOption;
+    /// use shiprs::container::RestartOption;
     ///
     /// # fn main() -> Result<()> {
     /// let docker = Docker::new().unwrap();
-    /// let options = ContainerRestartOption {
+    /// let options = RestartOption {
     ///     t: Some(10),
     ///     ..Default::default()
     /// };
@@ -317,9 +320,9 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    pub fn restart(&self, options: Option<ContainerRestartOption>) -> Result<()> {
+    pub fn restart(&self, options: Option<RestartOption>) -> Result<()> {
         let url = format!("/containers/{}/restart", self.id.as_ref());
-        let request = RequestBuilder::<ContainerRestartOption, ()>::post(&*url)
+        let request = RequestBuilder::<RestartOption, ()>::post(&*url)
             .query(options)
             .build();
         let _ = self.docker.request::<(), ()>(request)?;
@@ -347,9 +350,9 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    pub fn kill(&self, options: Option<ContainerKillOption>) -> Result<()> {
+    pub fn kill(&self, options: Option<KillOption>) -> Result<()> {
         let url = format!("/containers/{}/kill", self.id.as_ref());
-        let request = RequestBuilder::<ContainerKillOption, ()>::post(&*url)
+        let request = RequestBuilder::<KillOption, ()>::post(&*url)
             .query(options)
             .build();
         let _ = self.docker.request::<(), ()>(request)?;
@@ -365,11 +368,11 @@ where
     /// ```no_run
     /// # use shiprs::error::Result;
     /// use shiprs::Docker;
-    /// use shiprs::container::ContainerUpdateConfig;
+    /// use shiprs::container::UpdateConfig;
     ///
     /// # fn main() -> Result<()> {
     /// let docker = Docker::new().unwrap();
-    /// let config = ContainerUpdateConfig {
+    /// let config = UpdateConfig {
     ///     cpuset_cpus: Some("0,1"),
     ///     ..Default::default()
     /// };
@@ -382,17 +385,15 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    pub fn update<C>(&self, config: ContainerUpdateConfig<C>) -> Result<()>
+    pub fn update<C>(&self, config: UpdateConfig<C>) -> Result<()>
     where
         C: Into<String> + Eq + Hash + Serialize,
     {
         let url = format!("/containers/{}/update", self.id.as_ref());
-        let request = RequestBuilder::<(), ContainerUpdateConfig<C>>::post(&*url)
+        let request = RequestBuilder::<(), UpdateConfig<C>>::post(&*url)
             .body(config)
             .build();
-        let _ = self
-            .docker
-            .request::<ContainerUpdateConfig<C>, ()>(request)?;
+        let _ = self.docker.request::<UpdateConfig<C>, ()>(request)?;
 
         Ok(())
     }
@@ -407,7 +408,9 @@ where
 ///
 /// # fn main() -> Result<()> {
 /// let docker = Docker::new()?;
+///
 /// let containers = docker.containers().list::<&str>(None)?;
+///
 /// for container in containers {
 ///    println!("{:?}", container);
 /// }
@@ -434,15 +437,16 @@ impl<'docker> Containers<'docker> {
     /// ```no_run
     /// # use shiprs::error::Result;
     /// use shiprs::Docker;
+    /// use shiprs::container::{CreateOption, CreateConfig};
     ///
     /// # fn main() -> Result<()> {
     /// let docker = Docker::new()?;
     ///
-    /// let options = shiprs::container::ContainerCreateOption {
+    /// let options = CreateOption {
     ///     name: "my_container",
     ///     ..Default::default()
     /// };
-    /// let config = shiprs::container::Config {
+    /// let config = CreateConfig {
     ///     image: Some("hello-world"),
     ///     cmd: Some(vec!["/hello"]),
     ///     ..Default::default()
@@ -455,15 +459,15 @@ impl<'docker> Containers<'docker> {
     /// ```
     pub fn create<O, C>(
         &self,
-        options: Option<ContainerCreateOption<O>>,
-        config: Config<C>,
+        options: Option<CreateOption<O>>,
+        config: CreateConfig<C>,
     ) -> Result<ContainerCreateResponse>
     where
         O: Into<String> + Serialize,
         C: Into<String> + Eq + Hash + Serialize,
     {
         let url = "/containers/create";
-        let request = RequestBuilder::<ContainerCreateOption<O>, Config<C>>::post(url)
+        let request = RequestBuilder::<CreateOption<O>, CreateConfig<C>>::post(url)
             .query(options)
             .body(config)
             .build();
@@ -489,12 +493,12 @@ impl<'docker> Containers<'docker> {
     /// println!("{:?}", containers);
     /// # Ok(())
     /// # }
-    pub fn list<T>(&self, options: Option<ContainerListOption<T>>) -> Result<Vec<ContainerSummary>>
+    pub fn list<T>(&self, options: Option<ListOption<T>>) -> Result<Vec<ContainerSummary>>
     where
         T: Into<String> + std::hash::Hash + Eq + Serialize,
     {
         let url = "/containers/json";
-        let request = RequestBuilder::<ContainerListOption<T>, ()>::get(url)
+        let request = RequestBuilder::<ListOption<T>, ()>::get(url)
             .query(options)
             .build();
         let response = self.docker.request(request)?;
@@ -546,11 +550,10 @@ impl From<bool> for ContainerInspectOption {
 ///
 /// ```rust
 /// use std::collections::HashMap;
-///
-/// use shiprs::container::ContainerListOption;
+/// use shiprs::container::ListOption;
 ///
 /// // Get all running containers
-/// let options = ContainerListOption {
+/// let options = ListOption {
 ///     all: true,
 ///     filters: HashMap::from([("status", vec!["running"])]),
 ///     ..Default::default()
@@ -558,16 +561,16 @@ impl From<bool> for ContainerInspectOption {
 /// ```
 ///
 /// ```rust
-/// use shiprs::container::ContainerListOption;
+/// use shiprs::container::ListOption;
 ///
 /// // Get all containers
-/// let options: ContainerListOption<&str> = ContainerListOption {
+/// let options: ListOption<&str> = ListOption {
 ///    all: true,
 ///   ..Default::default()
 /// };
 /// ```
 #[derive(Default, Serialize)]
-pub struct ContainerListOption<T>
+pub struct ListOption<T>
 where
     T: Into<String> + Eq + std::hash::Hash + Serialize,
 {
@@ -598,47 +601,11 @@ where
     pub filters: HashMap<T, Vec<T>>,
 }
 
-/// Options for the `logs` method.
-/// This struct corresponds to the param options of the `GET /containers/(id)/logs` endpoint.
-/// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerLogs) for more information.
-#[derive(Serialize)]
-pub struct ContainerLogsOption {
-    /// Keep connection after returning logs.
-    pub follow: bool,
-    /// Return logs from `stdout`.
-    pub stdout: bool,
-    /// Return logs from `stderr`.
-    pub stderr: bool,
-    /// Only return logs since this time, as a UNIX timestamp.
-    pub since: i32,
-    /// Only return logs before this time, as a UNIX timestamp.
-    pub until: i32,
-    /// Add timestamps to every log line.
-    pub timestamps: bool,
-    /// Only return this number of log lines from the end of the logs.
-    /// Specify as an integer or `all` to output all logs.
-    pub tail: String,
-}
-
-impl Default for ContainerLogsOption {
-    fn default() -> Self {
-        ContainerLogsOption {
-            follow: false,
-            stdout: false,
-            stderr: false,
-            since: 0,
-            until: 0,
-            timestamps: false,
-            tail: "all".to_string(),
-        }
-    }
-}
-
 /// Options for the `create` method.
 /// This struct corresponds to the param options of the `POST /containers/create` endpoint.
 /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerCreate) for more information.
 #[derive(Default, Serialize)]
-pub struct ContainerCreateOption<T>
+pub struct CreateOption<T>
 where
     T: Into<String> + Serialize,
 {
@@ -673,7 +640,7 @@ pub struct NetworkingConfig<T: Into<String> + Hash + Eq> {
 /// Container to create.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
-pub struct Config<T>
+pub struct CreateConfig<T>
 where
     T: Into<String> + Eq + Hash,
 {
@@ -787,9 +754,9 @@ where
     pub networking_config: Option<NetworkingConfig<T>>,
 }
 
-impl From<ContainerConfig> for Config<String> {
+impl From<ContainerConfig> for CreateConfig<String> {
     fn from(value: ContainerConfig) -> Self {
-        Config {
+        CreateConfig {
             hostname: value.hostname,
             domainname: value.domainname,
             user: value.user,
@@ -830,7 +797,7 @@ where
 }
 
 #[derive(Default, Serialize)]
-pub struct ContainerRemoveOption {
+pub struct RemoveOption {
     /// If the container is running, kill it before removing it.
     pub force: bool,
 
@@ -842,7 +809,7 @@ pub struct ContainerRemoveOption {
 }
 
 #[derive(Default, Serialize)]
-pub struct ContainerResizeOption {
+pub struct ResizeOption {
     /// Height of the TTY session in characters
     pub h: u32,
 
@@ -851,7 +818,7 @@ pub struct ContainerResizeOption {
 }
 
 #[derive(Default, Serialize)]
-pub struct ContainerStartOption {
+pub struct StartOption {
     /// Override the key sequence for detaching a container.
     /// Format is a single character `[a-Z]` or `ctrl-<value>` where `<value>` is one of: `a-z`, `@`, `^`, `[`, `,` or `_`.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -860,7 +827,7 @@ pub struct ContainerStartOption {
 }
 
 #[derive(Default, Serialize)]
-pub struct ContainerStopOption {
+pub struct StopOption {
     /// Signal to send to the container as an integer or string (e.g. `SIGINT`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub signal: Option<String>,
@@ -871,7 +838,7 @@ pub struct ContainerStopOption {
 }
 
 #[derive(Default, Serialize)]
-pub struct ContainerRestartOption {
+pub struct RestartOption {
     /// Signal to send to the container as an integer or string (e.g. `SIGINT`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub signal: Option<String>,
@@ -882,7 +849,7 @@ pub struct ContainerRestartOption {
 }
 
 #[derive(Default, Serialize)]
-pub struct ContainerKillOption {
+pub struct KillOption {
     /// Signal to send to the container as an integer or string (e.g. `SIGINT`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub signal: Option<String>,
@@ -890,7 +857,7 @@ pub struct ContainerKillOption {
 
 #[derive(Default, Serialize)]
 #[serde(rename_all = "PascalCase")]
-pub struct ContainerUpdateConfig<T>
+pub struct UpdateConfig<T>
 where
     T: Into<String> + Eq + Hash,
 {
@@ -1047,4 +1014,13 @@ where
     /// An ever increasing delay (double the previous delay, starting at 100ms) is added before each restart to prevent flooding the server.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub restart_policy: Option<RestartPolicy>,
+}
+
+#[derive(Default, Serialize)]
+pub struct RenameOption<T>
+where
+    T: AsRef<str> + Serialize,
+{
+    /// The new name for the container.
+    pub name: T,
 }

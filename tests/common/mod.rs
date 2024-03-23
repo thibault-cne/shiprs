@@ -1,4 +1,4 @@
-use shiprs::container::{Config, ContainerCreateOption};
+use shiprs::container::{CreateConfig, CreateOption};
 use shiprs::error::Error;
 use shiprs::Docker;
 
@@ -7,11 +7,11 @@ pub fn create_container(
     image_name: &str,
     container_name: &str,
 ) -> Result<(), Error> {
-    let option = ContainerCreateOption {
+    let option = CreateOption {
         name: container_name.to_string(),
         ..Default::default()
     };
-    let config = Config {
+    let config = CreateConfig {
         image: Some(image_name),
         ..Default::default()
     };

@@ -1,4 +1,4 @@
-use shiprs::{container::ContainerListOption, error::Error, Docker};
+use shiprs::{container::ListOption, error::Error, Docker};
 
 mod common;
 use common::*;
@@ -10,7 +10,7 @@ fn integration_test_list_containers() -> Result<(), Error> {
     let image = format!("{}hello-world:linux", registry_http_addr());
     create_container(&docker, &image, "integration_test_list_containers")?;
 
-    let options = ContainerListOption::<String> {
+    let options = ListOption::<String> {
         all: true,
         ..Default::default()
     };
