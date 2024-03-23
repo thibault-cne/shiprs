@@ -16,7 +16,7 @@ fn integration_test_error_parsing() -> Result<()> {
 
     assert_eq!(
         err_s,
-        "http response error: No such image: localhost:8080/androw/uhttpd:latest"
+        "http response error: No such image: localhost:5000/unknown_image:unkown"
     );
 
     Ok(())
