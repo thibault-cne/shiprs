@@ -18,32 +18,31 @@ use crate::{docker::Docker, error::Result};
 ///
 /// # fn main() -> Result<()> {
 /// let docker = Docker::new().unwrap();
+///
 /// let container = docker
 ///     .containers()
 ///     .get("insert container id here")
 ///     .inspect(None)?;
+///
 /// println!("{:?}", container);
 /// # Ok(())
 /// # }
-pub struct Container<'docker> {
+pub struct Container<'docker, T> {
     docker: &'docker Docker,
-    id: String,
+    id: T,
 }
 
-impl<'docker> Container<'docker> {
-    pub(crate) fn new<S: Into<String>>(docker: &'docker Docker, id: S) -> Self {
-        Container {
-            docker,
-            id: id.into(),
-        }
+impl<'docker, T> Container<'docker, T>
+where
+    T: AsRef<str> + Eq + Hash + Serialize,
+{
+    pub(crate) fn new(docker: &'docker Docker, id: T) -> Self {
+        Container { docker, id }
     }
 
     /// Inspects the docker container details.
     /// This corresponds to the `GET /containers/(id)/json` endpoint.
     /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerInspect) for more information.
-    ///
-    /// # Parameters
-    /// - `options`: ContainerInspectOptions, used to provide options to the inspect method.
     ///
     /// # Example
     /// ```no_run
@@ -63,39 +62,8 @@ impl<'docker> Container<'docker> {
         &self,
         options: Option<ContainerInspectOption>,
     ) -> Result<ContainerInspectResponse> {
-        let url = format!("/containers/{}/json", self.id);
+        let url = format!("/containers/{}/json", self.id.as_ref());
         let request = RequestBuilder::<ContainerInspectOption, ()>::get(&*url)
-            .query(options)
-            .build();
-        let response = self.docker.request(request)?;
-
-        Ok(response.into_body().unwrap())
-    }
-
-    /// Retrieves the logs of the docker container.
-    /// This corresponds to the `GET /containers/(id)/logs` endpoint.
-    /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerLogs) for more information.
-    ///
-    /// # Parameters
-    /// - `options`: ContainerLogsOptions, used to provide options to the logs method.
-    ///
-    /// # Example
-    /// ```no_run
-    /// # use shiprs::error::Result;
-    /// use shiprs::Docker;
-    ///
-    /// # fn main() -> Result<()> {
-    /// let docker = Docker::new().unwrap();
-    /// let logs = docker
-    ///     .containers()
-    ///     .get("insert container id here")
-    ///     .logs(None)?;
-    /// println!("{}", logs);
-    /// # Ok(())
-    /// # }
-    pub fn logs(&self, options: Option<ContainerLogsOption>) -> Result<String> {
-        let url = format!("/containers/{}/logs", self.id);
-        let request = RequestBuilder::<ContainerLogsOption, ()>::get(&*url)
             .query(options)
             .build();
         let response = self.docker.request(request)?;
@@ -110,9 +78,6 @@ impl<'docker> Container<'docker> {
     /// # Description
     /// On Unix systems, this is done by running the `ps` command.
     /// This endpoint is not supported on Windows.
-    ///
-    /// # Parameters
-    /// - `options`: ContainerTopOption, used to provide options to the top method.
     ///
     /// # Example
     /// ```no_run
@@ -129,12 +94,12 @@ impl<'docker> Container<'docker> {
     /// # Ok(())
     /// # }
     #[cfg(feature = "unix-socket")]
-    pub fn top<T>(&self, options: Option<ContainerTopOption<T>>) -> Result<ContainerTopResponse>
+    pub fn top<O>(&self, options: Option<ContainerTopOption<O>>) -> Result<ContainerTopResponse>
     where
-        T: Serialize + Into<String>,
+        O: Serialize + Into<String>,
     {
-        let url = format!("/containers/{}/top", self.id);
-        let request = RequestBuilder::<ContainerTopOption<T>, ()>::get(&*url)
+        let url = format!("/containers/{}/top", self.id.as_ref());
+        let request = RequestBuilder::<ContainerTopOption<O>, ()>::get(&*url)
             .query(options)
             .build();
         let response = self.docker.request(request)?;
@@ -148,16 +113,6 @@ impl<'docker> Container<'docker> {
     ///
     /// # Description
     /// Export the contents of a container as a tarball.
-    /// get changes on a container's filesystem.
-    /// This corresponds to the `GET /containers/(id)/changes` endpoint.
-    /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerChanges) for more information.
-    ///
-    /// # Description
-    /// Returns which files in a container's filesystem have been added, deleted, or modified.
-    /// The Kind of modification can be one of:
-    /// - 0: Modified ("C")
-    /// - 1: Added ("A")
-    /// - 2: Deleted ("D")
     ///
     /// # Example
     /// ```no_run
@@ -173,7 +128,7 @@ impl<'docker> Container<'docker> {
     /// # Ok(())
     /// # }
     pub fn export(&self) -> Result<()> {
-        let url = format!("/containers/{}/export", self.id);
+        let url = format!("/containers/{}/export", self.id.as_ref());
         let request = RequestBuilder::<(), ()>::get(&*url).build();
         let _ = self.docker.request::<(), ()>(request)?;
 
@@ -195,13 +150,14 @@ impl<'docker> Container<'docker> {
     ///     .containers()
     ///     .get("insert container id here")
     ///     .changes()?;
+    ///
     /// for change in changes {
     ///   println!("{:?}", change);
     /// }
     /// # Ok(())
     /// # }
     pub fn changes(&self) -> Result<Vec<FilesystemChange>> {
-        let url = format!("/containers/{}/changes", self.id);
+        let url = format!("/containers/{}/changes", self.id.as_ref());
         let request = RequestBuilder::<(), ()>::get(&*url).build();
         let response = self.docker.request(request)?;
 
@@ -211,9 +167,6 @@ impl<'docker> Container<'docker> {
     /// Remove a container.
     /// This corresponds to the `DELETE /containers/(id)` endpoint.
     /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerDelete) for more information.
-    ///
-    /// # Parameters
-    /// - `options`: ContainerDeleteOptions, used to provide options to the delete method.
     ///
     /// # Example
     /// ```no_run
@@ -229,10 +182,253 @@ impl<'docker> Container<'docker> {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn remove(&self, options: Option<ContainerRemoveOption>) -> Result<()> {
-        let url = format!("/containers/{}", self.id);
-        let request = RequestBuilder::<ContainerRemoveOption, ()>::delete(&*url)
+    pub fn remove(&self, options: Option<RemoveOption>) -> Result<()> {
+        let url = format!("/containers/{}", self.id.as_ref());
+        let request = RequestBuilder::<RemoveOption, ()>::delete(&*url)
             .query(options)
+            .build();
+        let _ = self.docker.request::<(), ()>(request)?;
+
+        Ok(())
+    }
+
+    /// Resize a container TTY
+    /// This corresponds to the `POST /containers/(id)/resize` endpoint.
+    /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerResize) for more information.
+    ///
+    /// # Description
+    /// Resize the TTY for a container.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use shiprs::error::Result;
+    /// use shiprs::Docker;
+    /// use shiprs::container::ResizeOption;
+    ///
+    /// # fn main() -> Result<()> {
+    /// let docker = Docker::new().unwrap();
+    /// let options = ResizeOption {
+    ///     h: 100,
+    ///     w: 100,
+    /// };
+    ///
+    /// docker
+    ///     .containers()
+    ///     .get("insert container id here")
+    ///     .resize(Some(options))?;
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn resize(&self, options: Option<ResizeOption>) -> Result<()> {
+        let url = format!("/containers/{}/resize", self.id.as_ref());
+        let request = RequestBuilder::<ResizeOption, ()>::post(&*url)
+            .query(options)
+            .build();
+        let _ = self.docker.request::<(), ()>(request)?;
+
+        Ok(())
+    }
+
+    /// Start a container.
+    /// This corresponds to the `POST /containers/(id)/start` endpoint.
+    /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerStart) for more information.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use shiprs::error::Result;
+    /// use shiprs::Docker;
+    ///
+    /// # fn main() -> Result<()> {
+    /// let docker = Docker::new().unwrap();
+    ///
+    /// docker
+    ///     .containers()
+    ///     .get("insert container id here")
+    ///     .start(None)?;
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn start(&self, options: Option<StartOption>) -> Result<()> {
+        let url = format!("/containers/{}/start", self.id.as_ref());
+        let request = RequestBuilder::<StartOption, ()>::post(&*url)
+            .query(options)
+            .build();
+        let _ = self.docker.request::<(), ()>(request)?;
+
+        Ok(())
+    }
+
+    /// Stop a container.
+    /// This corresponds to the `POST /containers/(id)/stop` endpoint.
+    /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerStop) for more information.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use shiprs::error::Result;
+    /// use shiprs::Docker;
+    /// use shiprs::container::StopOption;
+    ///
+    /// # fn main() -> Result<()> {
+    /// let docker = Docker::new().unwrap();
+    /// let options = StopOption {
+    ///     t: Some(10),
+    ///     ..Default::default()
+    /// };
+    ///
+    /// docker
+    ///     .containers()
+    ///     .get("insert container id here")
+    ///     .stop(Some(options))?;
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn stop(&self, options: Option<StopOption>) -> Result<()> {
+        let url = format!("/containers/{}/stop", self.id.as_ref());
+        let request = RequestBuilder::<StopOption, ()>::post(&*url)
+            .query(options)
+            .build();
+        let _ = self.docker.request::<(), ()>(request)?;
+
+        Ok(())
+    }
+
+    /// Restart a container.
+    /// This corresponds to the `POST /containers/(id)/restart` endpoint.
+    /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerRestart) for more information.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use shiprs::error::Result;
+    /// use shiprs::Docker;
+    /// use shiprs::container::RestartOption;
+    ///
+    /// # fn main() -> Result<()> {
+    /// let docker = Docker::new().unwrap();
+    /// let options = RestartOption {
+    ///     t: Some(10),
+    ///     ..Default::default()
+    /// };
+    ///
+    /// docker
+    ///     .containers()
+    ///     .get("insert container id here")
+    ///     .restart(Some(options))?;
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn restart(&self, options: Option<RestartOption>) -> Result<()> {
+        let url = format!("/containers/{}/restart", self.id.as_ref());
+        let request = RequestBuilder::<RestartOption, ()>::post(&*url)
+            .query(options)
+            .build();
+        let _ = self.docker.request::<(), ()>(request)?;
+
+        Ok(())
+    }
+
+    /// Kill a container.
+    /// This corresponds to the `POST /containers/(id)/kill` endpoint.
+    /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerKill) for more information.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use shiprs::error::Result;
+    /// use shiprs::Docker;
+    ///
+    /// # fn main() -> Result<()> {
+    /// let docker = Docker::new().unwrap();
+    ///
+    /// docker
+    ///     .containers()
+    ///     .get("insert container id here")
+    ///     .kill(None)?;
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn kill(&self, options: Option<KillOption>) -> Result<()> {
+        let url = format!("/containers/{}/kill", self.id.as_ref());
+        let request = RequestBuilder::<KillOption, ()>::post(&*url)
+            .query(options)
+            .build();
+        let _ = self.docker.request::<(), ()>(request)?;
+
+        Ok(())
+    }
+
+    /// Update a container
+    /// This corresponds to the `POST /containers/(id)/update` endpoint.
+    /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerUpdate) for more information.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use shiprs::error::Result;
+    /// use shiprs::Docker;
+    /// use shiprs::container::UpdateConfig;
+    ///
+    /// # fn main() -> Result<()> {
+    /// let docker = Docker::new().unwrap();
+    /// let config = UpdateConfig {
+    ///     cpuset_cpus: Some("0,1"),
+    ///     ..Default::default()
+    /// };
+    ///
+    /// docker
+    ///     .containers()
+    ///     .get("insert container id here")
+    ///     .update(config)?;
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn update<C>(&self, config: UpdateConfig<C>) -> Result<()>
+    where
+        C: Into<String> + Eq + Hash + Serialize,
+    {
+        let url = format!("/containers/{}/update", self.id.as_ref());
+        let request = RequestBuilder::<(), UpdateConfig<C>>::post(&*url)
+            .body(config)
+            .build();
+        let _ = self.docker.request::<UpdateConfig<C>, ()>(request)?;
+
+        Ok(())
+    }
+
+    /// Rename a container.
+    /// This corresponds to the `POST /containers/(id)/rename` endpoint.
+    /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerRename) for more information.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use shiprs::error::Result;
+    /// use shiprs::Docker;
+    /// use shiprs::container::RenameOption;
+    ///
+    /// # fn main() -> Result<()> {
+    /// let docker = Docker::new().unwrap();
+    /// let options = RenameOption {
+    ///     name: "new_name",
+    /// };
+    ///
+    /// docker
+    ///     .containers()
+    ///     .get("insert container id here")
+    ///     .rename(options)?;
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn rename<O>(&self, option: RenameOption<O>) -> Result<()>
+    where
+        O: AsRef<str> + Serialize,
+    {
+        let url = format!("/containers/{}/rename", self.id.as_ref());
+        let request = RequestBuilder::<RenameOption<O>, ()>::post(&*url)
+            .query(Some(option))
             .build();
         let _ = self.docker.request::<(), ()>(request)?;
 
@@ -249,7 +445,9 @@ impl<'docker> Container<'docker> {
 ///
 /// # fn main() -> Result<()> {
 /// let docker = Docker::new()?;
+///
 /// let containers = docker.containers().list::<&str>(None)?;
+///
 /// for container in containers {
 ///    println!("{:?}", container);
 /// }
@@ -269,10 +467,6 @@ impl<'docker> Containers<'docker> {
     /// This corresponds to the `POST /containers/create` endpoint.
     /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerCreate) for more information.
     ///
-    /// # Parameters
-    /// - `options`: ContainerCreateOption, used to provide options to the create method.
-    /// - `config`: Config, used to provide the configuration for the newly created container.
-    ///
     /// # Warning
     /// In order for the container to be created successfully, the image must be pulled before calling the create method.
     ///
@@ -280,15 +474,16 @@ impl<'docker> Containers<'docker> {
     /// ```no_run
     /// # use shiprs::error::Result;
     /// use shiprs::Docker;
+    /// use shiprs::container::{CreateOption, CreateConfig};
     ///
     /// # fn main() -> Result<()> {
     /// let docker = Docker::new()?;
     ///
-    /// let options = shiprs::container::ContainerCreateOption {
+    /// let options = CreateOption {
     ///     name: "my_container",
     ///     ..Default::default()
     /// };
-    /// let config = shiprs::container::Config {
+    /// let config = CreateConfig {
     ///     image: Some("hello-world"),
     ///     cmd: Some(vec!["/hello"]),
     ///     ..Default::default()
@@ -301,15 +496,15 @@ impl<'docker> Containers<'docker> {
     /// ```
     pub fn create<O, C>(
         &self,
-        options: Option<ContainerCreateOption<O>>,
-        config: Config<C>,
+        options: Option<CreateOption<O>>,
+        config: CreateConfig<C>,
     ) -> Result<ContainerCreateResponse>
     where
         O: Into<String> + Serialize,
         C: Into<String> + Eq + Hash + Serialize,
     {
         let url = "/containers/create";
-        let request = RequestBuilder::<ContainerCreateOption<O>, Config<C>>::post(url)
+        let request = RequestBuilder::<CreateOption<O>, CreateConfig<C>>::post(url)
             .query(options)
             .body(config)
             .build();
@@ -321,9 +516,6 @@ impl<'docker> Containers<'docker> {
     /// Lists the docker containers.
     /// This corresponds to the `GET /containers/json` endpoint.
     /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerList) for more information.
-    ///
-    /// # Parameters
-    /// - `option`: ContainersListOptions, used to provide options to the list method.
     ///
     /// # Example
     /// ```no_run
@@ -338,12 +530,12 @@ impl<'docker> Containers<'docker> {
     /// println!("{:?}", containers);
     /// # Ok(())
     /// # }
-    pub fn list<T>(&self, options: Option<ContainerListOption<T>>) -> Result<Vec<ContainerSummary>>
+    pub fn list<T>(&self, options: Option<ListOption<T>>) -> Result<Vec<ContainerSummary>>
     where
         T: Into<String> + std::hash::Hash + Eq + Serialize,
     {
         let url = "/containers/json";
-        let request = RequestBuilder::<ContainerListOption<T>, ()>::get(url)
+        let request = RequestBuilder::<ListOption<T>, ()>::get(url)
             .query(options)
             .build();
         let response = self.docker.request(request)?;
@@ -366,7 +558,10 @@ impl<'docker> Containers<'docker> {
     ///     .get("insert container id here");
     /// # Ok(())
     /// # }
-    pub fn get<S: Into<String>>(&self, id: S) -> Container {
+    pub fn get<T>(self, id: T) -> Container<'docker, T>
+    where
+        T: AsRef<str> + Eq + Hash + Serialize,
+    {
         Container::new(self.docker, id)
     }
 }
@@ -392,11 +587,10 @@ impl From<bool> for ContainerInspectOption {
 ///
 /// ```rust
 /// use std::collections::HashMap;
-///
-/// use shiprs::container::ContainerListOption;
+/// use shiprs::container::ListOption;
 ///
 /// // Get all running containers
-/// let options = ContainerListOption {
+/// let options = ListOption {
 ///     all: true,
 ///     filters: HashMap::from([("status", vec!["running"])]),
 ///     ..Default::default()
@@ -404,16 +598,16 @@ impl From<bool> for ContainerInspectOption {
 /// ```
 ///
 /// ```rust
-/// use shiprs::container::ContainerListOption;
+/// use shiprs::container::ListOption;
 ///
 /// // Get all containers
-/// let options: ContainerListOption<&str> = ContainerListOption {
+/// let options: ListOption<&str> = ListOption {
 ///    all: true,
 ///   ..Default::default()
 /// };
 /// ```
 #[derive(Default, Serialize)]
-pub struct ContainerListOption<T>
+pub struct ListOption<T>
 where
     T: Into<String> + Eq + std::hash::Hash + Serialize,
 {
@@ -444,47 +638,11 @@ where
     pub filters: HashMap<T, Vec<T>>,
 }
 
-/// Options for the `logs` method.
-/// This struct corresponds to the param options of the `GET /containers/(id)/logs` endpoint.
-/// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerLogs) for more information.
-#[derive(Serialize)]
-pub struct ContainerLogsOption {
-    /// Keep connection after returning logs.
-    pub follow: bool,
-    /// Return logs from `stdout`.
-    pub stdout: bool,
-    /// Return logs from `stderr`.
-    pub stderr: bool,
-    /// Only return logs since this time, as a UNIX timestamp.
-    pub since: i32,
-    /// Only return logs before this time, as a UNIX timestamp.
-    pub until: i32,
-    /// Add timestamps to every log line.
-    pub timestamps: bool,
-    /// Only return this number of log lines from the end of the logs.
-    /// Specify as an integer or `all` to output all logs.
-    pub tail: String,
-}
-
-impl Default for ContainerLogsOption {
-    fn default() -> Self {
-        ContainerLogsOption {
-            follow: false,
-            stdout: false,
-            stderr: false,
-            since: 0,
-            until: 0,
-            timestamps: false,
-            tail: "all".to_string(),
-        }
-    }
-}
-
 /// Options for the `create` method.
 /// This struct corresponds to the param options of the `POST /containers/create` endpoint.
 /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerCreate) for more information.
 #[derive(Default, Serialize)]
-pub struct ContainerCreateOption<T>
+pub struct CreateOption<T>
 where
     T: Into<String> + Serialize,
 {
@@ -519,7 +677,7 @@ pub struct NetworkingConfig<T: Into<String> + Hash + Eq> {
 /// Container to create.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
-pub struct Config<T>
+pub struct CreateConfig<T>
 where
     T: Into<String> + Eq + Hash,
 {
@@ -633,9 +791,9 @@ where
     pub networking_config: Option<NetworkingConfig<T>>,
 }
 
-impl From<ContainerConfig> for Config<String> {
+impl From<ContainerConfig> for CreateConfig<String> {
     fn from(value: ContainerConfig) -> Self {
-        Config {
+        CreateConfig {
             hostname: value.hostname,
             domainname: value.domainname,
             user: value.user,
@@ -676,16 +834,230 @@ where
 }
 
 #[derive(Default, Serialize)]
-pub struct ContainerRemoveOption {
+pub struct RemoveOption {
     /// If the container is running, kill it before removing it.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub force: Option<bool>,
+    pub force: bool,
 
     /// Remove the volumes associated with the container.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub v: Option<bool>,
+    pub v: bool,
 
     /// Remove the specified link associated with the container.
+    pub link: bool,
+}
+
+#[derive(Default, Serialize)]
+pub struct ResizeOption {
+    /// Height of the TTY session in characters
+    pub h: u32,
+
+    /// Width of the TTY session in characters
+    pub w: u32,
+}
+
+#[derive(Default, Serialize)]
+pub struct StartOption {
+    /// Override the key sequence for detaching a container.
+    /// Format is a single character `[a-Z]` or `ctrl-<value>` where `<value>` is one of: `a-z`, `@`, `^`, `[`, `,` or `_`.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub link: Option<bool>,
+    #[serde(rename = "detachKeys")]
+    pub detach_keys: Option<String>,
+}
+
+#[derive(Default, Serialize)]
+pub struct StopOption {
+    /// Signal to send to the container as an integer or string (e.g. `SIGINT`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub signal: Option<String>,
+
+    /// Number of seconds to wait before killing the container.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub t: Option<u32>,
+}
+
+#[derive(Default, Serialize)]
+pub struct RestartOption {
+    /// Signal to send to the container as an integer or string (e.g. `SIGINT`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub signal: Option<String>,
+
+    /// Number of seconds to wait before killing the container.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub t: Option<u32>,
+}
+
+#[derive(Default, Serialize)]
+pub struct KillOption {
+    /// Signal to send to the container as an integer or string (e.g. `SIGINT`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub signal: Option<String>,
+}
+
+#[derive(Default, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct UpdateConfig<T>
+where
+    T: Into<String> + Eq + Hash,
+{
+    /// An integer value representing this container's relative CPU weight versus other containers.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpu_shares: Option<i64>,
+
+    /// Memory limit in bytes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory: Option<i64>,
+
+    /// Path to `cgroups` under which the container's `cgroup` is created.
+    /// If the path is not absolute, the path is considered to be relative to the `cgroups` path of the init process.
+    /// Cgroups are created if they do not already exist.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cgroup_parent: Option<T>,
+
+    /// Block IO weight (relative weight) accepts a weight value between 0 and 1000.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub blkio_weight: Option<u16>,
+
+    /// Block IO weight (relative device weight).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub blkio_weight_device: Option<Vec<ResourcesBlkioWeightDevice>>,
+
+    /// Limit read rate (bytes per second) from a device.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub blkio_device_read_bps: Option<Vec<ThrottleDevice>>,
+
+    /// Limit write rate (bytes per second) to a device.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub blkio_device_write_bps: Option<Vec<ThrottleDevice>>,
+
+    /// Limit read rate (IO per second) from a device.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "BlkioDeviceReadIOps")]
+    pub blkio_device_read_iops: Option<Vec<ThrottleDevice>>,
+
+    /// Limit write rate (IO per second) to a device.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "BlkioDeviceWriteIOps")]
+    pub blkio_device_write_iops: Option<Vec<ThrottleDevice>>,
+
+    /// The length of a CPU period in microseconds.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpu_period: Option<i64>,
+
+    /// Microseconds of CPU time that the container can get in a CPU period.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpu_quota: Option<i64>,
+
+    /// The length of a CPU real-time period in microseconds.
+    /// Set to 0 to allocate no time allocated to real-time tasks.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpu_realtime_period: Option<i64>,
+
+    /// The length of a CPU real-time runtime in microseconds.
+    /// Set to 0 to allocate no time allocated to real-time tasks.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpu_realtime_runtime: Option<i64>,
+
+    /// CPUs in which to allow execution (e.g., `0-3`, `0,1`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpuset_cpus: Option<T>,
+
+    /// Memory nodes (MEMs) in which to allow execution (0-3, 0,1).
+    /// Only effective on NUMA systems.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpuset_mems: Option<T>,
+
+    /// A list of devices to add to the container.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub devices: Option<Vec<DeviceMapping>>,
+
+    /// A list of cgroup rules to apply to the container
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_cgroup_rules: Option<Vec<T>>,
+
+    /// A list of requests for devices to be sent to device drivers.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_requests: Option<Vec<DeviceRequest>>,
+
+    /// Hard limit for kernel TCP buffer memory (in bytes).
+    /// Depending on the OCI runtime in use, this option may be ignored.
+    /// It is no longer supported by the default (runc) runtime.
+    ///
+    /// This field is omitted when empty.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kernel_memory_tcp: Option<i64>,
+
+    /// Memory soft limit in bytes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory_reservation: Option<i64>,
+
+    /// Total memory limit (memory + swap). Set as `-1` to enable unlimited swap.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory_swap: Option<i64>,
+
+    /// Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory_swappiness: Option<u8>,
+
+    /// CPU quota in units of 10-9 CPUs.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nano_cpus: Option<i64>,
+
+    /// Disable OOM Killer for the container.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub oom_kill_disable: Option<bool>,
+
+    /// Run an init inside the container that forwards signals and reaps processes.
+    /// This field is omitted if empty, and the default (as configured on the daemon) is used.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub init: Option<bool>,
+
+    /// Tune a container's PIDs limit. Set `0` or `-1` for unlimited, or null to not change.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pids_limit: Option<i64>,
+
+    /// A list of resource limits to set in the container.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ulimits: Option<Vec<ResourcesUlimits>>,
+
+    /// The number of usable CPUs (Windows only).
+    ///
+    /// On Windows Server containers, the processor resource controls are mutually exclusive.
+    /// The order of precedence is `CPUCount` first, then `CPUShares`, and `CPUPercent` last.
+    #[cfg(feature = "windows")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpu_count: Option<i64>,
+
+    /// The usable percentage of the available CPUs (Windows only).
+    ///
+    /// On Windows Server containers, the processor resource controls are mutually exclusive.
+    /// The order of precedence is `CPUCount` first, then `CPUShares`, and `CPUPercent` last.
+    #[cfg(feature = "windows")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpu_percent: Option<i64>,
+
+    /// Maximum IOps for the container system drive (Windows only)
+    #[cfg(feature = "windows")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "IOMaximumIOps")]
+    pub io_maximum_iops: Option<i64>,
+
+    /// Maximum IO in bytes per second for the container system drive (Windows only).
+    #[cfg(feature = "windows")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "IOMaximumBandwidth")]
+    pub io_maximum_bandwidth: Option<i64>,
+
+    /// The behavior to apply when the container exits. The default is not to restart.
+    ///
+    /// An ever increasing delay (double the previous delay, starting at 100ms) is added before each restart to prevent flooding the server.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub restart_policy: Option<RestartPolicy>,
+}
+
+#[derive(Default, Serialize)]
+pub struct RenameOption<T>
+where
+    T: AsRef<str> + Serialize,
+{
+    /// The new name for the container.
+    pub name: T,
 }

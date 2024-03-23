@@ -1,27 +1,53 @@
-use shiprs::container::{Config, ContainerCreateOption};
-use shiprs::error::Error;
+use shiprs::container::{CreateConfig, CreateOption};
+use shiprs::error::Result;
 use shiprs::Docker;
+
+use shiprs_models::models::ContainerCreateResponse;
 
 pub fn create_container(
     docker: &Docker,
     image_name: &str,
     container_name: &str,
-) -> Result<(), Error> {
-    let option = ContainerCreateOption {
+) -> Result<ContainerCreateResponse> {
+    let option = CreateOption {
         name: container_name.to_string(),
         ..Default::default()
     };
-    let config = Config {
+    let config = CreateConfig {
         image: Some(image_name),
         ..Default::default()
     };
 
-    let _ = docker.containers().create(Some(option), config)?;
+    docker.containers().create(Some(option), config)
+}
+
+pub fn create_daemon(docker: &Docker, container_name: &str) -> Result<()> {
+    let image_name = format!("{}androw/uhttpd", registry_http_addr());
+
+    let option = CreateOption {
+        name: container_name.to_string(),
+        ..Default::default()
+    };
+    let config = CreateConfig {
+        image: Some(image_name),
+        ..Default::default()
+    };
+
+    let result = docker.containers().create(Some(option), config)?;
+
+    assert!(!result.id.is_empty());
+
+    docker.containers().get(container_name).start(None)?;
 
     Ok(())
 }
 
-pub fn remove_container(docker: &Docker, container_name: &str) -> Result<(), Error> {
+pub fn remove_daemon(docker: &Docker, container_name: &str) -> Result<()> {
+    docker.containers().get(container_name).stop(None)?;
+    remove_container(docker, container_name)
+}
+
+pub fn remove_container(docker: &Docker, container_name: &str) -> Result<()> {
     docker.containers().get(container_name).remove(None)
 }
 
