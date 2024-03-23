@@ -25,17 +25,17 @@ use crate::{docker::Docker, error::Result};
 /// println!("{:?}", container);
 /// # Ok(())
 /// # }
-pub struct Container<'docker> {
+pub struct Container<'docker, T> {
     docker: &'docker Docker,
-    id: String,
+    id: T,
 }
 
-impl<'docker> Container<'docker> {
-    pub(crate) fn new<S: Into<String>>(docker: &'docker Docker, id: S) -> Self {
-        Container {
-            docker,
-            id: id.into(),
-        }
+impl<'docker, T> Container<'docker, T>
+where
+    T: AsRef<str> + Eq + Hash + Serialize,
+{
+    pub(crate) fn new(docker: &'docker Docker, id: T) -> Self {
+        Container { docker, id }
     }
 
     /// Inspects the docker container details.
@@ -60,7 +60,7 @@ impl<'docker> Container<'docker> {
         &self,
         options: Option<ContainerInspectOption>,
     ) -> Result<ContainerInspectResponse> {
-        let url = format!("/containers/{}/json", self.id);
+        let url = format!("/containers/{}/json", self.id.as_ref());
         let request = RequestBuilder::<ContainerInspectOption, ()>::get(&*url)
             .query(options)
             .build();
@@ -92,12 +92,12 @@ impl<'docker> Container<'docker> {
     /// # Ok(())
     /// # }
     #[cfg(feature = "unix-socket")]
-    pub fn top<T>(&self, options: Option<ContainerTopOption<T>>) -> Result<ContainerTopResponse>
+    pub fn top<O>(&self, options: Option<ContainerTopOption<O>>) -> Result<ContainerTopResponse>
     where
-        T: Serialize + Into<String>,
+        O: Serialize + Into<String>,
     {
-        let url = format!("/containers/{}/top", self.id);
-        let request = RequestBuilder::<ContainerTopOption<T>, ()>::get(&*url)
+        let url = format!("/containers/{}/top", self.id.as_ref());
+        let request = RequestBuilder::<ContainerTopOption<O>, ()>::get(&*url)
             .query(options)
             .build();
         let response = self.docker.request(request)?;
@@ -126,7 +126,7 @@ impl<'docker> Container<'docker> {
     /// # Ok(())
     /// # }
     pub fn export(&self) -> Result<()> {
-        let url = format!("/containers/{}/export", self.id);
+        let url = format!("/containers/{}/export", self.id.as_ref());
         let request = RequestBuilder::<(), ()>::get(&*url).build();
         let _ = self.docker.request::<(), ()>(request)?;
 
@@ -154,7 +154,7 @@ impl<'docker> Container<'docker> {
     /// # Ok(())
     /// # }
     pub fn changes(&self) -> Result<Vec<FilesystemChange>> {
-        let url = format!("/containers/{}/changes", self.id);
+        let url = format!("/containers/{}/changes", self.id.as_ref());
         let request = RequestBuilder::<(), ()>::get(&*url).build();
         let response = self.docker.request(request)?;
 
@@ -180,7 +180,7 @@ impl<'docker> Container<'docker> {
     /// # }
     /// ```
     pub fn remove(&self, options: Option<ContainerRemoveOption>) -> Result<()> {
-        let url = format!("/containers/{}", self.id);
+        let url = format!("/containers/{}", self.id.as_ref());
         let request = RequestBuilder::<ContainerRemoveOption, ()>::delete(&*url)
             .query(options)
             .build();
@@ -218,7 +218,7 @@ impl<'docker> Container<'docker> {
     /// # }
     /// ```
     pub fn resize(&self, options: Option<ContainerResizeOption>) -> Result<()> {
-        let url = format!("/containers/{}/resize", self.id);
+        let url = format!("/containers/{}/resize", self.id.as_ref());
         let request = RequestBuilder::<ContainerResizeOption, ()>::post(&*url)
             .query(options)
             .build();
@@ -248,7 +248,7 @@ impl<'docker> Container<'docker> {
     /// # }
     /// ```
     pub fn start(&self, options: Option<ContainerStartOption>) -> Result<()> {
-        let url = format!("/containers/{}/start", self.id);
+        let url = format!("/containers/{}/start", self.id.as_ref());
         let request = RequestBuilder::<ContainerStartOption, ()>::post(&*url)
             .query(options)
             .build();
@@ -283,7 +283,7 @@ impl<'docker> Container<'docker> {
     /// # }
     /// ```
     pub fn stop(&self, options: Option<ContainerStopOption>) -> Result<()> {
-        let url = format!("/containers/{}/stop", self.id);
+        let url = format!("/containers/{}/stop", self.id.as_ref());
         let request = RequestBuilder::<ContainerStopOption, ()>::post(&*url)
             .query(options)
             .build();
@@ -318,7 +318,7 @@ impl<'docker> Container<'docker> {
     /// # }
     /// ```
     pub fn restart(&self, options: Option<ContainerRestartOption>) -> Result<()> {
-        let url = format!("/containers/{}/restart", self.id);
+        let url = format!("/containers/{}/restart", self.id.as_ref());
         let request = RequestBuilder::<ContainerRestartOption, ()>::post(&*url)
             .query(options)
             .build();
@@ -348,7 +348,7 @@ impl<'docker> Container<'docker> {
     /// # }
     /// ```
     pub fn kill(&self, options: Option<ContainerKillOption>) -> Result<()> {
-        let url = format!("/containers/{}/kill", self.id);
+        let url = format!("/containers/{}/kill", self.id.as_ref());
         let request = RequestBuilder::<ContainerKillOption, ()>::post(&*url)
             .query(options)
             .build();
@@ -386,7 +386,7 @@ impl<'docker> Container<'docker> {
     where
         C: Into<String> + Eq + Hash + Serialize,
     {
-        let url = format!("/containers/{}/update", self.id);
+        let url = format!("/containers/{}/update", self.id.as_ref());
         let request = RequestBuilder::<(), ContainerUpdateConfig<C>>::post(&*url)
             .body(config)
             .build();
@@ -517,7 +517,10 @@ impl<'docker> Containers<'docker> {
     ///     .get("insert container id here");
     /// # Ok(())
     /// # }
-    pub fn get<S: Into<String>>(&self, id: S) -> Container {
+    pub fn get<T>(&self, id: T) -> Container<T>
+    where
+        T: AsRef<str> + Eq + Hash + Serialize,
+    {
         Container::new(self.docker, id)
     }
 }
