@@ -1,12 +1,8 @@
 use shiprs::container::{CreateConfig, CreateOption};
-use shiprs::error::Error;
+use shiprs::error::Result;
 use shiprs::Docker;
 
-pub fn create_container(
-    docker: &Docker,
-    image_name: &str,
-    container_name: &str,
-) -> Result<(), Error> {
+pub fn create_container(docker: &Docker, image_name: &str, container_name: &str) -> Result<()> {
     let option = CreateOption {
         name: container_name.to_string(),
         ..Default::default()
@@ -21,7 +17,28 @@ pub fn create_container(
     Ok(())
 }
 
-pub fn remove_container(docker: &Docker, container_name: &str) -> Result<(), Error> {
+pub fn create_daemon(docker: &Docker, container_name: &str) -> Result<()> {
+    let image_name = format!("{}fnichol/uhttpd", registry_http_addr());
+
+    let option = CreateOption {
+        name: container_name.to_string(),
+        ..Default::default()
+    };
+    let config = CreateConfig {
+        image: Some(image_name),
+        ..Default::default()
+    };
+
+    let result = docker.containers().create(Some(option), config)?;
+
+    assert!(!result.id.is_empty());
+
+    docker.containers().get(container_name).start(None)?;
+
+    Ok(())
+}
+
+pub fn remove_container(docker: &Docker, container_name: &str) -> Result<()> {
     docker.containers().get(container_name).remove(None)
 }
 

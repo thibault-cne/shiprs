@@ -16,12 +16,12 @@ sleep 4
 # Pull images from the docker.io registry
 docker pull hello-world:linux
 docker pull alpine
-docker pull helloworld
+docker pull fnichol/uhttpd
 
 # Tag images to then push them to the local registry
 docker tag hello-world:linux localhost:8080/hello-world:linux
 docker tag alpine localhost:8080/alpine
-docker tag httpd localhost:8080/helloworld
+docker tag httpd localhost:8080/fnichol/uhttpd
 
 # Login to registry
 docker login --username shiprs --password "${REGISTRY_PASSWORD}" localhost:8080
@@ -29,7 +29,7 @@ docker login --username shiprs --password "${REGISTRY_PASSWORD}" localhost:8080
 # Push images to the local registry
 docker push localhost:8080/hello-world:linux
 docker push localhost:8080/alpine
-docker push localhost:8080/helloworld
+docker push localhost:8080/fnichol/uhttpd
 
 # Run tests
 docker swarm init

@@ -1,10 +1,10 @@
-use shiprs::{container::ListOption, error::Error, Docker};
+use shiprs::{container::ListOption, error::Result, Docker};
 
 mod common;
 use common::*;
 
 #[test]
-fn integration_test_list_containers() -> Result<(), Error> {
+fn integration_test_list_containers() -> Result<()> {
     let docker = Docker::new()?;
 
     let image = format!("{}hello-world:linux", registry_http_addr());
@@ -28,7 +28,7 @@ fn integration_test_list_containers() -> Result<(), Error> {
 }
 
 #[test]
-fn integration_test_inspect_container() -> Result<(), Error> {
+fn integration_test_inspect_container() -> Result<()> {
     let docker = Docker::new()?;
 
     let image = format!("{}hello-world:linux", registry_http_addr());
@@ -46,6 +46,47 @@ fn integration_test_inspect_container() -> Result<(), Error> {
     );
 
     remove_container(&docker, "integration_test_inspect_container")?;
+
+    Ok(())
+}
+
+#[test]
+fn integration_test_start_container() -> Result<()> {
+    let docker = Docker::new()?;
+
+    create_daemon(&docker, "integration_test_start_container")?;
+
+    let container = docker
+        .containers()
+        .get("integration_test_start_container")
+        .inspect(None)?;
+
+    assert!(container.state.unwrap().running.unwrap());
+
+    remove_container(&docker, "integration_test_start_container")?;
+
+    Ok(())
+}
+
+#[test]
+fn integration_test_stop_container() -> Result<()> {
+    let docker = Docker::new()?;
+
+    create_daemon(&docker, "integration_test_stop_container")?;
+
+    docker
+        .containers()
+        .get("integration_test_stop_container")
+        .stop(None)?;
+
+    let container = docker
+        .containers()
+        .get("integration_test_stop_container")
+        .inspect(None)?;
+
+    assert!(!container.state.unwrap().running.unwrap());
+
+    remove_container(&docker, "integration_test_stop_container")?;
 
     Ok(())
 }
