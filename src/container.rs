@@ -397,6 +397,43 @@ where
 
         Ok(())
     }
+
+    /// Rename a container.
+    /// This corresponds to the `POST /containers/(id)/rename` endpoint.
+    /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerRename) for more information.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use shiprs::error::Result;
+    /// use shiprs::Docker;
+    /// use shiprs::container::RenameOption;
+    ///
+    /// # fn main() -> Result<()> {
+    /// let docker = Docker::new().unwrap();
+    /// let options = RenameOption {
+    ///     name: "new_name",
+    /// };
+    ///
+    /// docker
+    ///     .containers()
+    ///     .get("insert container id here")
+    ///     .rename(options)?;
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn rename<O>(&self, option: RenameOption<O>) -> Result<()>
+    where
+        O: AsRef<str> + Serialize,
+    {
+        let url = format!("/containers/{}/rename", self.id.as_ref());
+        let request = RequestBuilder::<RenameOption<O>, ()>::post(&*url)
+            .query(Some(option))
+            .build();
+        let _ = self.docker.request::<(), ()>(request)?;
+
+        Ok(())
+    }
 }
 
 /// Interface for interacting with docker containers.
