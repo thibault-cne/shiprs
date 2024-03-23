@@ -131,20 +131,22 @@ fn integration_test_rename_container() -> Result<()> {
     let docker = Docker::new()?;
 
     let image = format!("{}hello-world:linux", registry_http_addr());
-    create_container(&docker, &image, "integration_test_rename_container")?;
+    let container_id = create_container(&docker, &image, "integration_test_rename_container")?.id;
 
     let option = RenameOption {
-        name: "integration_test_rename_container",
+        name: "integration_test_rename_container_2",
     };
 
-    let container = docker.containers().get("integration_test_rename_container");
-
+    let container = docker.containers().get(&container_id);
     container.rename(option)?;
     let inspect = container.inspect(None)?;
 
-    assert_eq!(inspect.name.unwrap(), "/integration_test_rename_container");
+    assert_eq!(
+        inspect.name.unwrap(),
+        "/integration_test_rename_container_2"
+    );
 
-    remove_container(&docker, "integration_test_rename_container")?;
+    remove_container(&docker, &container_id)?;
 
     Ok(())
 }

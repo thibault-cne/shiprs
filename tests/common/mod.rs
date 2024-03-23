@@ -2,7 +2,13 @@ use shiprs::container::{CreateConfig, CreateOption};
 use shiprs::error::Result;
 use shiprs::Docker;
 
-pub fn create_container(docker: &Docker, image_name: &str, container_name: &str) -> Result<()> {
+use shiprs_models::models::ContainerCreateResponse;
+
+pub fn create_container(
+    docker: &Docker,
+    image_name: &str,
+    container_name: &str,
+) -> Result<ContainerCreateResponse> {
     let option = CreateOption {
         name: container_name.to_string(),
         ..Default::default()
@@ -12,9 +18,7 @@ pub fn create_container(docker: &Docker, image_name: &str, container_name: &str)
         ..Default::default()
     };
 
-    let _ = docker.containers().create(Some(option), config)?;
-
-    Ok(())
+    docker.containers().create(Some(option), config)
 }
 
 pub fn create_daemon(docker: &Docker, container_name: &str) -> Result<()> {
