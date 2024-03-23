@@ -18,7 +18,7 @@ pub fn create_container(docker: &Docker, image_name: &str, container_name: &str)
 }
 
 pub fn create_daemon(docker: &Docker, container_name: &str) -> Result<()> {
-    let image_name = format!("{}fnichol/uhttpd", registry_http_addr());
+    let image_name = format!("{}androw/uhttpd", registry_http_addr());
 
     let option = CreateOption {
         name: container_name.to_string(),
