@@ -434,6 +434,40 @@ where
 
         Ok(())
     }
+
+    /// Pause a container.
+    /// This corresponds to the `POST /containers/(id)/pause` endpoint.
+    /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerPause) for more information.
+    ///
+    /// # Description
+    /// Use the freezer cgroup to suspend all processes in a container.
+    /// Traditionally, when suspending a process the `SIGSTOP` signal is used,
+    /// which is observable by the process being suspended.
+    /// With the freezer cgroup the process is unaware, and unable to capture, that it is being suspended, and subsequently resumed.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use shiprs::error::Result;
+    /// use shiprs::Docker;
+    ///
+    /// # fn main() -> Result<()> {
+    /// let docker = Docker::new().unwrap();
+    ///
+    /// docker
+    ///     .containers()
+    ///     .get("insert container id here")
+    ///     .pause()?;
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn pause(&self) -> Result<()> {
+        let url = format!("/containers/{}/pause", self.id.as_ref());
+        let request = RequestBuilder::<(), ()>::post(&*url).build();
+        let _ = self.docker.request::<(), ()>(request)?;
+
+        Ok(())
+    }
 }
 
 /// Interface for interacting with docker containers.
