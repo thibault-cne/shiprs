@@ -499,44 +499,6 @@ where
 
         Ok(())
     }
-
-    /// Wait for a container.
-    /// This corresponds to the `POST /containers/(id)/wait` endpoint.
-    /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerWait) for more information.
-    ///
-    /// # Description
-    /// Block until a container stops, then returns the exit code.
-    ///
-    /// # Example
-    /// ```no_run
-    /// # use shiprs::error::Result;
-    /// use shiprs::Docker;
-    ///
-    /// # fn main() -> Result<()> {
-    /// let docker = Docker::new().unwrap();
-    ///
-    /// let response = docker
-    ///     .containers()
-    ///     .get("insert container id here")
-    ///     .wait::<&str>(None)?;
-    ///
-    /// println!("Exit code: {}", response.status_code);
-    ///
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn wait<O>(&self, option: Option<WaitOption<O>>) -> Result<ContainerWaitResponse>
-    where
-        O: Into<String> + Serialize,
-    {
-        let url = format!("/containers/{}/wait", self.id.as_ref());
-        let request = RequestBuilder::<WaitOption<O>, ()>::post(&*url)
-            .query(option)
-            .build();
-        let response = self.docker.request::<(), ContainerWaitResponse>(request)?;
-
-        Ok(response.into_body().unwrap())
-    }
 }
 
 /// Interface for interacting with docker containers.
@@ -1163,17 +1125,4 @@ where
 {
     /// The new name for the container.
     pub name: T,
-}
-
-#[derive(Default, Serialize)]
-pub struct WaitOption<T>
-where
-    T: Into<String> + Serialize,
-{
-    /// Default: `"not-running"`
-    /// Enum: `"not-running"` `"next-exit"` `"removed"`
-    /// Wait until a container state reaches the given condition.
-    ///
-    /// Defaults to `not-running` if omitted or empty.
-    pub condition: T,
 }
