@@ -189,3 +189,20 @@ fn integration_test_unpause_container() -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn integration_test_wait_container() -> Result<()> {
+    let docker = Docker::new()?;
+
+    let container_id = create_daemon(&docker, "integration_test_wait_container")?.id;
+
+    let container = docker.containers().get(container_id);
+
+    let res = container.wait::<&str>(None)?;
+
+    assert_eq!(res.status_code, 0);
+
+    remove_daemon(&docker, "integration_test_wait_container")?;
+
+    Ok(())
+}
