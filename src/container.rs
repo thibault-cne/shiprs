@@ -468,6 +468,37 @@ where
 
         Ok(())
     }
+
+    /// Unpause a container.
+    /// This corresponds to the `POST /containers/(id)/unpause` endpoint.
+    /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerUnpause) for more information.
+    ///
+    /// # Description
+    /// Resume a container which has been paused.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use shiprs::error::Result;
+    /// use shiprs::Docker;
+    ///
+    /// # fn main() -> Result<()> {
+    /// let docker = Docker::new().unwrap();
+    ///
+    /// docker
+    ///     .containers()
+    ///     .get("insert container id here")
+    ///     .unpause()?;
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn unpause(&self) -> Result<()> {
+        let url = format!("/containers/{}/unpause", self.id.as_ref());
+        let request = RequestBuilder::<(), ()>::post(&*url).build();
+        let _ = self.docker.request::<(), ()>(request)?;
+
+        Ok(())
+    }
 }
 
 /// Interface for interacting with docker containers.

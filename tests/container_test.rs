@@ -169,3 +169,23 @@ fn integration_test_pause_container() -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn integration_test_unpause_container() -> Result<()> {
+    let docker = Docker::new()?;
+
+    let container_id = create_daemon(&docker, "integration_test_unpause_container")?.id;
+
+    let container = docker.containers().get(container_id);
+
+    container.pause()?;
+    container.unpause()?;
+
+    let container_inspect = container.inspect(None)?;
+
+    assert!(!container_inspect.state.unwrap().paused.unwrap());
+
+    remove_daemon(&docker, "integration_test_unpause_container")?;
+
+    Ok(())
+}
