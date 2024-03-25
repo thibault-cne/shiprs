@@ -2,31 +2,22 @@
 //! https://github.com/seanmonstar/httparse/blob/master/src/macros.rs
 
 macro_rules! next {
-    ($bytes:ident) => {{
+    ($bytes:ident => $ret:expr) => {{
         match $bytes.next() {
             Some(b) => b,
-            None => return Ok(Status::Partial),
+            None => return $ret,
         }
     }};
 }
 
 macro_rules! expect {
     ($bytes:ident.next() == $pat:pat => $ret:expr) => {
-        expect!(next!($bytes) => $pat => $ret)
+        expect!(next!($bytes => $ret) => $pat => $ret)
     };
     ($e:expr => $pat:pat => $ret:expr) => {
         match $e {
             v@$pat => v,
             _ => return $ret
-        }
-    };
-}
-
-macro_rules! complete {
-    ($e:expr) => {
-        match $e? {
-            Status::Complete(v) => v,
-            Status::Partial => return Ok(Status::Partial),
         }
     };
 }
@@ -40,7 +31,7 @@ macro_rules! space {
 
 macro_rules! newline {
     ($bytes:ident) => ({
-        match next!($bytes) {
+        match next!($bytes => Err(NewLine.into())) {
             b'\r' => {
                 expect!($bytes.next() == b'\n' => Err(NewLine.into()));
                 $bytes.slice();

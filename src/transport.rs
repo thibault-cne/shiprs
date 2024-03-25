@@ -1,10 +1,11 @@
 #![allow(dead_code)]
 
-use std::io::{Read, Write};
+use std::io::{BufReader, Write};
 use std::os::unix::net::UnixStream;
 
 use serde::{Deserialize, Serialize};
 
+use crate::http::response::PartialResponse;
 use crate::{
     error::Result,
     http::{request::Request, response::Response},
@@ -41,7 +42,7 @@ impl Transport {
 
 const BUFFER_SIZE: usize = 1024;
 const CRLF: &[u8] = b"\r\n";
-const END: &[u8] = b"0\r\n\r\n";
+const END: &[u8] = b"\r\n\r\n";
 
 pub(crate) struct Client<S> {
     socket: S,
@@ -54,39 +55,12 @@ impl Client<UnixStream> {
         for<'de> R: Deserialize<'de>,
     {
         let mut socket = self.socket.try_clone()?;
-        socket.set_read_timeout(Some(std::time::Duration::new(1, 0)))?;
 
         let buf = req.into_bytes();
         socket.write_all(&buf)?;
 
-        let mut buf: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
-        let mut raw_resp = Vec::new();
-        loop {
-            let n = match socket.read(&mut buf[..]) {
-                Ok(n) => n,
-                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => 0,
-                Err(e) => return Err(e.into()),
-            };
-
-            buf.iter().take(n).for_each(|b| raw_resp.push(*b));
-
-            if n > 4 && check_buf_end(&buf, n, END) {
-                break;
-            }
-            if n > 1 && check_buf_end(&buf, n, CRLF) {
-                continue;
-            }
-            if n < BUFFER_SIZE {
-                break;
-            }
-        }
-
-        crate::debug_print!("{}", String::from_utf8_lossy(&raw_resp));
-        Response::<R>::try_from(raw_resp.as_slice())
+        let parser = crate::http::parser::ResponseParser::new(BufReader::new(socket));
+        let partial_resp = PartialResponse::try_from(parser)?;
+        Response::<R>::try_from(partial_resp)
     }
-}
-
-fn check_buf_end(buf: &[u8], len: usize, needle: &[u8]) -> bool {
-    let needle_len = needle.len();
-    len >= needle_len && &buf[len - needle_len..len] == needle
 }
