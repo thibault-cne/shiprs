@@ -424,12 +424,77 @@ where
     /// ```
     pub fn rename<O>(&self, option: RenameOption<O>) -> Result<()>
     where
-        O: AsRef<str> + Serialize,
+        O: Into<String> + Serialize,
     {
         let url = format!("/containers/{}/rename", self.id.as_ref());
         let request = RequestBuilder::<RenameOption<O>, ()>::post(&*url)
             .query(Some(option))
             .build();
+        let _ = self.docker.request::<(), ()>(request)?;
+
+        Ok(())
+    }
+
+    /// Pause a container.
+    /// This corresponds to the `POST /containers/(id)/pause` endpoint.
+    /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerPause) for more information.
+    ///
+    /// # Description
+    /// Use the freezer cgroup to suspend all processes in a container.
+    /// Traditionally, when suspending a process the `SIGSTOP` signal is used,
+    /// which is observable by the process being suspended.
+    /// With the freezer cgroup the process is unaware, and unable to capture, that it is being suspended, and subsequently resumed.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use shiprs::error::Result;
+    /// use shiprs::Docker;
+    ///
+    /// # fn main() -> Result<()> {
+    /// let docker = Docker::new().unwrap();
+    ///
+    /// docker
+    ///     .containers()
+    ///     .get("insert container id here")
+    ///     .pause()?;
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn pause(&self) -> Result<()> {
+        let url = format!("/containers/{}/pause", self.id.as_ref());
+        let request = RequestBuilder::<(), ()>::post(&*url).build();
+        let _ = self.docker.request::<(), ()>(request)?;
+
+        Ok(())
+    }
+
+    /// Unpause a container.
+    /// This corresponds to the `POST /containers/(id)/unpause` endpoint.
+    /// See the [API documentation](https://docs.docker.com/engine/api/v1.44/#tag/Container/operation/ContainerUnpause) for more information.
+    ///
+    /// # Description
+    /// Resume a container which has been paused.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use shiprs::error::Result;
+    /// use shiprs::Docker;
+    ///
+    /// # fn main() -> Result<()> {
+    /// let docker = Docker::new().unwrap();
+    ///
+    /// docker
+    ///     .containers()
+    ///     .get("insert container id here")
+    ///     .unpause()?;
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn unpause(&self) -> Result<()> {
+        let url = format!("/containers/{}/unpause", self.id.as_ref());
+        let request = RequestBuilder::<(), ()>::post(&*url).build();
         let _ = self.docker.request::<(), ()>(request)?;
 
         Ok(())
@@ -1056,7 +1121,7 @@ where
 #[derive(Default, Serialize)]
 pub struct RenameOption<T>
 where
-    T: AsRef<str> + Serialize,
+    T: Into<String> + Serialize,
 {
     /// The new name for the container.
     pub name: T,

@@ -21,7 +21,7 @@ pub fn create_container(
     docker.containers().create(Some(option), config)
 }
 
-pub fn create_daemon(docker: &Docker, container_name: &str) -> Result<()> {
+pub fn create_daemon(docker: &Docker, container_name: &str) -> Result<ContainerCreateResponse> {
     let image_name = format!("{}androw/uhttpd", registry_http_addr());
 
     let option = CreateOption {
@@ -39,7 +39,7 @@ pub fn create_daemon(docker: &Docker, container_name: &str) -> Result<()> {
 
     docker.containers().get(container_name).start(None)?;
 
-    Ok(())
+    Ok(result)
 }
 
 pub fn remove_daemon(docker: &Docker, container_name: &str) -> Result<()> {
