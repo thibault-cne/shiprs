@@ -11,6 +11,7 @@ const END_OF_HEADERS: &[u8] = b"\r\n\r\n";
 
 pub struct ResponseParser<R> {
     inner: BufReader<R>,
+    kind: BodyKind,
 }
 
 impl<R> ResponseParser<R>
@@ -20,11 +21,8 @@ where
     pub fn new(inner: R) -> Self {
         Self {
             inner: BufReader::new(inner),
+            kind: BodyKind::Empty,
         }
-    }
-
-    pub fn into_inner(self) -> BufReader<R> {
-        self.inner
     }
 
     pub fn parse_until_headers(
@@ -54,15 +52,20 @@ where
 
         let mut headers = HashMap::new();
         parse_headers(&mut bytes, &mut headers)?;
+        self.kind = BodyKind::try_from_headers(&headers)?;
 
         Ok((version, status, reason, headers))
+    }
+
+    pub fn parse_body(self) -> Result<Option<Vec<u8>>> {
+        let mut body_parser = BodyParser::new(self.inner, self.kind)?;
+        body_parser.parse()
     }
 
     fn read_until_headers(&mut self) -> IoResult<Vec<u8>> {
         let mut buf = Vec::new();
 
         loop {
-            dbg!("{}", unsafe { std::str::from_utf8_unchecked(&buf) });
             let byte = self.inner.by_ref().bytes().next();
 
             match byte {
@@ -86,7 +89,22 @@ enum BodyKind {
     Unsupported,
 }
 
-pub struct BodyParser<R> {
+impl BodyKind {
+    fn try_from_headers(headers: &HashMap<String, String>) -> Result<Self> {
+        if headers.get("Transfer-Encoding").map(|h| h.as_str()) == Some("chunked") {
+            Ok(BodyKind::Chunked)
+        } else if let Some(length_s) = headers.get("Content-Length") {
+            let length = length_s
+                .parse()
+                .map_err::<Error, _>(|_| ContentLength.into())?;
+            Ok(BodyKind::Length(length))
+        } else {
+            Ok(BodyKind::Empty)
+        }
+    }
+}
+
+struct BodyParser<R> {
     inner: BufReader<R>,
     kind: BodyKind,
 }
@@ -95,35 +113,47 @@ impl<R> BodyParser<R>
 where
     R: Read,
 {
-    pub fn new(inner: R, headers: &HashMap<String, String>) -> Result<Self> {
-        let kind = match headers.get("Transfer-Encoding") {
-            Some(value) if value == "chunked" => BodyKind::Chunked,
-            _ => match headers.get("Content-Length") {
-                Some(value) => match value.parse::<usize>() {
-                    Ok(length) => BodyKind::Length(length),
-                    Err(_) => return Err(ContentLength.into()),
-                },
-                None => BodyKind::Empty,
-            },
-        };
-
-        Ok(Self {
-            inner: BufReader::new(inner),
-            kind,
-        })
+    pub fn new(inner: BufReader<R>, kind: BodyKind) -> Result<Self> {
+        Ok(Self { inner, kind })
     }
 
     pub fn parse(&mut self) -> Result<Option<Vec<u8>>> {
-        let mut buf = Vec::new();
-        self.inner.read_to_end(&mut buf)?;
-        let mut bytes = Bytes::new(&buf);
-
         match self.kind {
-            BodyKind::Chunked => parse_chunked_body(&mut bytes).map(Some),
-            BodyKind::Length(length) => parse_length_body(&mut bytes, length).map(Some),
+            BodyKind::Chunked => parse_chunked_body(self).map(Some),
+            BodyKind::Length(_) => parse_length_body(self).map(Some),
             BodyKind::Empty => Ok(None),
             BodyKind::Unsupported => Err(UnsupportedBodyEncoding.into()),
         }
+    }
+
+    fn read_next_line(&mut self) -> Result<Vec<u8>> {
+        let mut buf = Vec::new();
+
+        loop {
+            let byte = self.inner.by_ref().bytes().next();
+
+            match byte {
+                Some(b) => buf.push(b?),
+                None => {
+                    return Err(IoError::new(ErrorKind::ConnectionAborted, "Unexpected EOF").into())
+                }
+            };
+
+            if buf.ends_with(CRLF) {
+                break;
+            }
+        }
+
+        Ok(buf)
+    }
+}
+
+impl<R> Read for BodyParser<R>
+where
+    R: Read,
+{
+    fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
+        self.inner.read(buf)
     }
 }
 
@@ -255,58 +285,56 @@ fn parse_headers(bytes: &mut Bytes, map: &mut HashMap<String, String>) -> Result
 }
 
 #[inline]
-fn parse_chunked_body(bytes: &mut Bytes) -> Result<Vec<u8>> {
+fn parse_chunked_body<R: Read>(parser: &mut BodyParser<R>) -> Result<Vec<u8>> {
     let mut body = Vec::new();
 
     loop {
-        match next!(bytes => Err(Chunk.into())) {
-            b'\r' => {
-                expect!(bytes.next() == b'\n' => Err(ChunkSize.into()));
-                // SAFETY: (1) calling bytes.slice_skip(2) is safe, because at least two next! calls have been made
-                let chunk_size = unsafe { bytes.slice_skip(2) };
-                let chunk_size_s = unsafe { std::str::from_utf8_unchecked(chunk_size) };
-                let chunk_size = usize::from_str_radix(chunk_size_s, 16)
-                    .map_err(|_| Into::<Error>::into(ChunkSize))?;
+        let chunk_length_b = parser.read_next_line()?;
+        let chunk_length_s = std::str::from_utf8(&chunk_length_b[..chunk_length_b.len() - 2])
+            .map_err::<Error, _>(|_| ChunkSize.into())?;
+        let chunk_length =
+            usize::from_str_radix(chunk_length_s, 16).map_err::<Error, _>(|_| ChunkSize.into())?;
 
-                if chunk_size == 0 && bytes.peek_n::<[u8; 2]>() == Some(*CRLF) {
-                    return Ok(body);
-                }
-
-                // SAFETY: it's safe to advance the bytes iterator by `chunk_size` bytes, because
-                // the chunk size was validated to be a valid hexadecimal number and the bytes
-                // iterator is guaranteed to have at least `chunk_size` bytes left.
-                if bytes.len() < chunk_size {
-                    return Err(Chunk.into());
-                }
-                unsafe { bytes.advance(chunk_size) };
-                let chunk = bytes.slice();
-                body.extend_from_slice(chunk);
-                newline!(bytes);
-            }
-            _ => continue,
+        if chunk_length == 0 {
+            // Read the last CRLF.
+            parser
+                .read_exact(&mut [0; 2])
+                .map_err::<Error, _>(|_| Chunk.into())?;
+            break;
         }
+
+        let mut chunk = vec![0; chunk_length];
+        parser
+            .read_exact(&mut chunk)
+            .map_err::<Error, _>(|_| Chunk.into())?;
+        body.extend(chunk);
+
+        // Read the CRLF.
+        parser.read_exact(&mut [0; 2])?;
     }
+
+    Ok(body)
 }
 
 #[inline]
-fn parse_length_body(bytes: &mut Bytes, length: usize) -> Result<Vec<u8>> {
-    if bytes.len() < length {
-        return Err(BodyLength.into());
-    }
+fn parse_length_body<R: Read>(parser: &mut BodyParser<R>) -> Result<Vec<u8>> {
+    let length = match parser.kind {
+        BodyKind::Length(length) => length,
+        _ => unreachable!("parse_length_body called with non-length body kind"),
+    };
 
-    // SAFETY: it's safe to advance the bytes iterator by `length` bytes, because
-    // the length was validated to be a valid length and the bytes iterator is guaranteed
-    // to have at least `length` bytes left.
-    unsafe { bytes.advance(length) };
+    let mut buf = vec![0; length];
+    parser.read_exact(&mut buf)?;
 
-    Ok(bytes.slice().to_vec())
+    Ok(buf)
 }
 
-impl<'buf> From<&'buf [u8]> for ResponseParser<&'buf [u8]> {
-    fn from(buf: &'buf [u8]) -> Self {
-        ResponseParser {
-            inner: BufReader::new(buf),
-        }
+impl<R> From<R> for ResponseParser<R>
+where
+    R: Read,
+{
+    fn from(inner: R) -> Self {
+        ResponseParser::new(inner)
     }
 }
 
@@ -366,9 +394,13 @@ mod tests {
 
     #[test]
     fn test_parse_chunked_body() -> Result<()> {
-        let bytes = b"4\r\nWiki\r\n7\r\npedia i\r\nB\r\nn \r\nchunks.\r\n0\r\n\r\n";
-        let mut bytes = Bytes::new(bytes);
-        let body = parse_chunked_body(&mut bytes)?;
+        let bytes: &[u8] = b"4\r\nWiki\r\n7\r\npedia i\r\nB\r\nn \r\nchunks.\r\n0\r\n\r\n";
+        let mut parser = BodyParser {
+            inner: BufReader::new(bytes),
+            kind: BodyKind::Chunked,
+        };
+
+        let body = parse_chunked_body(&mut parser)?;
 
         assert_eq!(body, b"Wikipedia in \r\nchunks.");
 
@@ -377,10 +409,13 @@ mod tests {
 
     #[test]
     fn test_parse_length_body() -> Result<()> {
-        let bytes = b"Hello, World!";
-        let mut bytes = Bytes::new(bytes);
+        let bytes: &[u8] = b"Hello, World!";
+        let mut parser = BodyParser {
+            inner: BufReader::new(bytes),
+            kind: BodyKind::Length(13),
+        };
 
-        let body = parse_length_body(&mut bytes, 13)?;
+        let body = parse_length_body(&mut parser)?;
 
         assert_eq!(body, b"Hello, World!");
 
@@ -389,10 +424,13 @@ mod tests {
 
     #[test]
     fn test_deserialize_body() -> Result<()> {
-        let bytes = b"5\r\n\"Wiki\r\n7\r\npedia i\r\nA\r\nn chunks.\"\r\n0\r\n\r\n";
-        let mut bytes = Bytes::new(bytes);
+        let bytes: &[u8] = b"5\r\n\"Wiki\r\n7\r\npedia i\r\nA\r\nn chunks.\"\r\n0\r\n\r\n";
+        let mut parser = BodyParser {
+            inner: BufReader::new(bytes),
+            kind: BodyKind::Chunked,
+        };
 
-        let body = parse_chunked_body(&mut bytes)?;
+        let body = parse_chunked_body(&mut parser)?;
 
         let expected = b"Wikipedia in chunks.";
         let expected_s = unsafe { std::str::from_utf8_unchecked(expected) };

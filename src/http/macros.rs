@@ -28,18 +28,3 @@ macro_rules! space {
         $bytes.slice();
     })
 }
-
-macro_rules! newline {
-    ($bytes:ident) => ({
-        match next!($bytes => Err(NewLine.into())) {
-            b'\r' => {
-                expect!($bytes.next() == b'\n' => Err(NewLine.into()));
-                $bytes.slice();
-            },
-            b'\n' => {
-                $bytes.slice();
-            },
-            _ => return Err(NewLine.into())
-        }
-    })
-}

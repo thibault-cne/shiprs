@@ -5,7 +5,6 @@ use std::os::unix::net::UnixStream;
 
 use serde::{Deserialize, Serialize};
 
-use crate::http::response::PartialResponse;
 use crate::{
     error::Result,
     http::{request::Request, response::Response},
@@ -59,8 +58,6 @@ impl Client<UnixStream> {
         let buf = req.into_bytes();
         socket.write_all(&buf)?;
 
-        let parser = crate::http::parser::ResponseParser::new(BufReader::new(socket));
-        let partial_resp = PartialResponse::try_from(parser)?;
-        Response::<R>::try_from(partial_resp)
+        Response::<R>::try_from(BufReader::new(socket))
     }
 }
