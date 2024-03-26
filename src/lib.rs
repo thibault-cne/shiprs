@@ -1,14 +1,14 @@
+#[macro_use]
+mod macros;
+
 pub mod container;
-mod docker;
+pub mod docker;
 pub mod error;
-mod http;
 mod image;
 mod network;
 mod transport;
 
-const API_VERSION: &str = "v1.44";
-
-pub use docker::Docker;
+pub use docker::{Docker, DockerResponse};
 
 pub(crate) fn serialize_as_json<T: serde::Serialize, S: serde::Serializer>(
     t: &T,

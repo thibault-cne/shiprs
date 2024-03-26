@@ -316,6 +316,17 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_urlencoded",
+ "shiprs_http",
+ "shiprs_models",
+]
+
+[[package]]
+name = "shiprs_http"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "serde_urlencoded",
  "shiprs_models",
 ]
 

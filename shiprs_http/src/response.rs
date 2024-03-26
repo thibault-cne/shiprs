@@ -1,20 +1,58 @@
 use std::collections::HashMap;
-use std::io::BufReader;
-use std::io::Read;
-use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::io::{BufReader, Error as IoError, ErrorKind, Read, Result as IoResult};
 
-use super::iter::Bytes;
-use super::{HttpVersion, CRLF};
-use crate::error::{Error, HttpParsingErrorKind::*, Result};
+use crate::bytes::Bytes;
+use crate::error::{Error, HttpParsingKind::*, Result};
+use crate::version::HttpVersion;
+use crate::{CRLF, HEADERS_END};
 
-const END_OF_HEADERS: &[u8] = b"\r\n\r\n";
+/// An HTTP response.
+#[derive(Debug, Default)]
+pub struct Response<B> {
+    version: HttpVersion,
+    status: u16,
+    reason: String,
+    headers: HashMap<String, String>,
+    body: Vec<u8>,
+    body_type: std::marker::PhantomData<B>,
+}
 
-pub struct ResponseParser<R> {
+impl<B> Response<B> {
+    pub fn status(&self) -> u16 {
+        self.status
+    }
+
+    pub fn headers(&self) -> &HashMap<String, String> {
+        &self.headers
+    }
+
+    pub fn into_response<T>(self) -> Response<T> {
+        Response {
+            version: self.version,
+            status: self.status,
+            reason: self.reason,
+            headers: self.headers,
+            body: self.body,
+            body_type: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<B> Response<B>
+where
+    B: for<'de> serde::Deserialize<'de>,
+{
+    pub fn body(&self) -> Result<B> {
+        serde_json::from_slice(&self.body).map_err(|e| e.into())
+    }
+}
+
+pub struct Parser<R> {
     inner: BufReader<R>,
     kind: BodyKind,
 }
 
-impl<R> ResponseParser<R>
+impl<R> Parser<R>
 where
     R: Read,
 {
@@ -25,7 +63,7 @@ where
         }
     }
 
-    pub fn parse_until_headers(
+    fn parse_until_headers(
         &mut self,
     ) -> Result<(HttpVersion, u16, String, HashMap<String, String>)> {
         let buf = self.read_until_headers()?;
@@ -57,9 +95,12 @@ where
         Ok((version, status, reason, headers))
     }
 
-    pub fn parse_body(self) -> Result<Option<Vec<u8>>> {
-        let mut body_parser = BodyParser::new(self.inner, self.kind)?;
-        body_parser.parse()
+    fn parse_body(&mut self) -> Result<Option<Vec<u8>>> {
+        match self.kind {
+            BodyKind::Chunked => parse_chunked_body(self).map(Some),
+            BodyKind::Length(_) => parse_length_body(self).map(Some),
+            BodyKind::Empty => Ok(None),
+        }
     }
 
     fn read_until_headers(&mut self) -> IoResult<Vec<u8>> {
@@ -73,57 +114,12 @@ where
                 None => return Err(IoError::new(ErrorKind::ConnectionAborted, "Unexpected EOF")),
             };
 
-            if buf.ends_with(END_OF_HEADERS) {
+            if buf.ends_with(HEADERS_END) {
                 break;
             }
         }
 
         Ok(buf)
-    }
-}
-
-enum BodyKind {
-    Chunked,
-    Empty,
-    Length(usize),
-    Unsupported,
-}
-
-impl BodyKind {
-    fn try_from_headers(headers: &HashMap<String, String>) -> Result<Self> {
-        if headers.get("Transfer-Encoding").map(|h| h.as_str()) == Some("chunked") {
-            Ok(BodyKind::Chunked)
-        } else if let Some(length_s) = headers.get("Content-Length") {
-            let length = length_s
-                .parse()
-                .map_err::<Error, _>(|_| ContentLength.into())?;
-            Ok(BodyKind::Length(length))
-        } else {
-            Ok(BodyKind::Empty)
-        }
-    }
-}
-
-struct BodyParser<R> {
-    inner: BufReader<R>,
-    kind: BodyKind,
-}
-
-impl<R> BodyParser<R>
-where
-    R: Read,
-{
-    pub fn new(inner: BufReader<R>, kind: BodyKind) -> Result<Self> {
-        Ok(Self { inner, kind })
-    }
-
-    pub fn parse(&mut self) -> Result<Option<Vec<u8>>> {
-        match self.kind {
-            BodyKind::Chunked => parse_chunked_body(self).map(Some),
-            BodyKind::Length(_) => parse_length_body(self).map(Some),
-            BodyKind::Empty => Ok(None),
-            BodyKind::Unsupported => Err(UnsupportedBodyEncoding.into()),
-        }
     }
 
     fn read_next_line(&mut self) -> Result<Vec<u8>> {
@@ -148,12 +144,24 @@ where
     }
 }
 
-impl<R> Read for BodyParser<R>
-where
-    R: Read,
-{
-    fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
-        self.inner.read(buf)
+enum BodyKind {
+    Chunked,
+    Empty,
+    Length(usize),
+}
+
+impl BodyKind {
+    fn try_from_headers(headers: &HashMap<String, String>) -> Result<Self> {
+        if headers.get("Transfer-Encoding").map(|h| h.as_str()) == Some("chunked") {
+            Ok(BodyKind::Chunked)
+        } else if let Some(length_s) = headers.get("Content-Length") {
+            let length = length_s
+                .parse()
+                .map_err::<Error, _>(|_| ContentLength.into())?;
+            Ok(BodyKind::Length(length))
+        } else {
+            Ok(BodyKind::Empty)
+        }
     }
 }
 
@@ -285,7 +293,7 @@ fn parse_headers(bytes: &mut Bytes, map: &mut HashMap<String, String>) -> Result
 }
 
 #[inline]
-fn parse_chunked_body<R: Read>(parser: &mut BodyParser<R>) -> Result<Vec<u8>> {
+fn parse_chunked_body<R: Read>(parser: &mut Parser<R>) -> Result<Vec<u8>> {
     let mut body = Vec::new();
 
     loop {
@@ -317,7 +325,7 @@ fn parse_chunked_body<R: Read>(parser: &mut BodyParser<R>) -> Result<Vec<u8>> {
 }
 
 #[inline]
-fn parse_length_body<R: Read>(parser: &mut BodyParser<R>) -> Result<Vec<u8>> {
+fn parse_length_body<R: Read>(parser: &mut Parser<R>) -> Result<Vec<u8>> {
     let length = match parser.kind {
         BodyKind::Length(length) => length,
         _ => unreachable!("parse_length_body called with non-length body kind"),
@@ -329,12 +337,50 @@ fn parse_length_body<R: Read>(parser: &mut BodyParser<R>) -> Result<Vec<u8>> {
     Ok(buf)
 }
 
-impl<R> From<R> for ResponseParser<R>
+impl<R, B> TryFrom<BufReader<R>> for Response<B>
+where
+    R: Read,
+{
+    type Error = Error;
+
+    fn try_from(reader: BufReader<R>) -> Result<Self> {
+        let mut parser = Parser::new(reader);
+        let (version, status, reason, headers) = parser.parse_until_headers()?;
+        let body = parser.parse_body()?;
+
+        let body = match (body, status) {
+            (Some(_), 204 | 304) => Vec::new(),
+            (Some(body), 200..=399) => body,
+            (Some(body), 400..=599) => body,
+            _ => Vec::new(),
+        };
+
+        Ok(Response {
+            version,
+            status,
+            reason,
+            headers,
+            body,
+            body_type: std::marker::PhantomData,
+        })
+    }
+}
+
+impl<R> From<R> for Parser<R>
 where
     R: Read,
 {
     fn from(inner: R) -> Self {
-        ResponseParser::new(inner)
+        Parser::new(inner)
+    }
+}
+
+impl<R> Read for Parser<R>
+where
+    R: Read,
+{
+    fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
+        self.inner.read(buf)
     }
 }
 
@@ -395,7 +441,7 @@ mod tests {
     #[test]
     fn test_parse_chunked_body() -> Result<()> {
         let bytes: &[u8] = b"4\r\nWiki\r\n7\r\npedia i\r\nB\r\nn \r\nchunks.\r\n0\r\n\r\n";
-        let mut parser = BodyParser {
+        let mut parser = Parser {
             inner: BufReader::new(bytes),
             kind: BodyKind::Chunked,
         };
@@ -410,7 +456,7 @@ mod tests {
     #[test]
     fn test_parse_length_body() -> Result<()> {
         let bytes: &[u8] = b"Hello, World!";
-        let mut parser = BodyParser {
+        let mut parser = Parser {
             inner: BufReader::new(bytes),
             kind: BodyKind::Length(13),
         };
@@ -423,21 +469,84 @@ mod tests {
     }
 
     #[test]
-    fn test_deserialize_body() -> Result<()> {
-        let bytes: &[u8] = b"5\r\n\"Wiki\r\n7\r\npedia i\r\nA\r\nn chunks.\"\r\n0\r\n\r\n";
-        let mut parser = BodyParser {
-            inner: BufReader::new(bytes),
-            kind: BodyKind::Chunked,
-        };
+    fn test_parse_respons_with_chunked_body() -> Result<()> {
+        let response: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nTransfer-Encoding: chunked\r\n\r\n5\r\n\"Wiki\r\n7\r\npedia i\r\nA\r\nn chunks.\"\r\n0\r\n\r\n";
+        let response = Response::<String>::try_from(BufReader::new(response))?;
 
-        let body = parse_chunked_body(&mut parser)?;
-
-        let expected = b"Wikipedia in chunks.";
-        let expected_s = unsafe { std::str::from_utf8_unchecked(expected) };
-
-        let parsed_body = serde_json::from_slice::<&str>(&body)?;
-        assert_eq!(parsed_body, expected_s);
+        assert_eq!(response.version, HttpVersion::Http1_1);
+        assert_eq!(response.status, 200);
+        assert_eq!(response.reason, "OK");
+        assert_eq!(
+            response.headers.get("Content-Type"),
+            Some(&"text/plain".to_string())
+        );
+        assert_eq!(
+            response.headers.get("Transfer-Encoding"),
+            Some(&"chunked".to_string())
+        );
+        assert_eq!(response.body, b"Wikipedia in chunks.");
 
         Ok(())
+    }
+
+    #[test]
+    fn test_parse_response_with_length_body() -> Result<()> {
+        let response: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 15\r\n\r\n\"Hello, World!\"";
+        let response = Response::<String>::try_from(BufReader::new(response))?;
+
+        assert_eq!(response.version, HttpVersion::Http1_1);
+        assert_eq!(response.status, 200);
+        assert_eq!(response.reason, "OK");
+        assert_eq!(
+            response.headers.get("Content-Type"),
+            Some(&"text/plain".to_string())
+        );
+        assert_eq!(
+            response.headers.get("Content-Length"),
+            Some(&"15".to_string())
+        );
+        assert_eq!(response.body, b"Hello, World!");
+
+        Ok(())
+    }
+
+    #[test]
+    fn parse_response_with_empty_body() -> Result<()> {
+        let response: &[u8] =
+            b"HTTP/1.1 204 No-Content\r\nContent-Type: none\r\nVersion: v1.44\r\n\r\n";
+        let response = Response::<()>::try_from(BufReader::new(response))?;
+
+        assert_eq!(response.version, HttpVersion::Http1_1);
+        assert_eq!(response.status, 204);
+        assert_eq!(response.reason, "No-Content");
+        assert_eq!(
+            response.headers.get("Content-Type"),
+            Some(&"none".to_string())
+        );
+        assert_eq!(response.headers.get("Version"), Some(&"v1.44".to_string()));
+        assert!(response.body.is_empty());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_convert_response() {
+        let response: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 15\r\n\r\n\"Hello, World!\"";
+        let response = Response::<String>::try_from(BufReader::new(response)).unwrap();
+
+        let response: Response<&str> = response.into_response();
+
+        assert_eq!(response.version, HttpVersion::Http1_1);
+        assert_eq!(response.status, 200);
+        assert_eq!(response.reason, "OK");
+        assert_eq!(
+            response.headers.get("Content-Type"),
+            Some(&"text/plain".to_string())
+        );
+        assert_eq!(
+            response.headers.get("Content-Length"),
+            Some(&"15".to_string())
+        );
+        assert_eq!(response.body, b"Hello, World!");
     }
 }

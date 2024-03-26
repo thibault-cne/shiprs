@@ -20,10 +20,6 @@ impl<'buf> Bytes<'buf> {
         }
     }
 
-    pub fn len(&self) -> usize {
-        self.end as usize - self.ptr as usize
-    }
-
     pub fn peek(&self) -> Option<u8> {
         if self.ptr < self.end {
             Some(unsafe { *self.ptr })
