@@ -7,7 +7,7 @@ use crate::version::HttpVersion;
 use crate::{CRLF, HEADERS_END};
 
 /// An HTTP response.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Response<B> {
     version: HttpVersion,
     status: u16,

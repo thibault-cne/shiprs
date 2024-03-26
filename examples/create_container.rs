@@ -15,7 +15,12 @@ fn main() -> Result<()> {
         ..Default::default()
     };
 
-    let container = docker.containers().create(Some(options), config)?;
+    let container = docker
+        .containers()
+        .create(Some(options), config)?
+        .body()?
+        .success();
+
     println!("{:?}", container);
 
     Ok(())

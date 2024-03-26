@@ -1,8 +1,10 @@
 use shiprs::container::{CreateConfig, CreateOption};
 use shiprs::error::Result;
 use shiprs::{Docker, DockerResponse};
+use shiprs_http::Response;
+use shiprs_models::models::{ContainerCreateResponse, ErrorResponse};
 
-use shiprs_models::models::ContainerCreateResponse;
+type DockerResult<T> = Result<DockerResponse<Response<T>, Response<ErrorResponse>>>;
 
 #[macro_use]
 mod macros;
@@ -11,7 +13,7 @@ pub fn create_container(
     docker: &Docker,
     image_name: &str,
     container_name: &str,
-) -> Result<DockerResponse<ContainerCreateResponse>> {
+) -> DockerResult<ContainerCreateResponse> {
     let option = CreateOption {
         name: container_name.to_string(),
         ..Default::default()
@@ -27,7 +29,7 @@ pub fn create_container(
 pub fn create_daemon(
     docker: &Docker,
     container_name: &str,
-) -> Result<DockerResponse<ContainerCreateResponse>> {
+) -> DockerResult<ContainerCreateResponse> {
     let image_name = format!("{}androw/uhttpd", registry_http_addr());
 
     let option = CreateOption {
@@ -49,12 +51,12 @@ pub fn create_daemon(
     Ok(result)
 }
 
-pub fn remove_daemon(docker: &Docker, container_name: &str) -> Result<DockerResponse<()>> {
+pub fn remove_daemon(docker: &Docker, container_name: &str) -> DockerResult<()> {
     docker.containers().get(container_name).stop(None)?;
     remove_container(docker, container_name)
 }
 
-pub fn remove_container(docker: &Docker, container_name: &str) -> Result<DockerResponse<()>> {
+pub fn remove_container(docker: &Docker, container_name: &str) -> DockerResult<()> {
     docker.containers().get(container_name).remove(None)
 }
 

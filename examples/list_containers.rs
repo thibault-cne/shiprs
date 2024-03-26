@@ -11,7 +11,8 @@ fn main() -> Result<()> {
         filters: HashMap::from([("status", vec!["exited"])]),
         ..Default::default()
     };
-    let containers = docker.containers().list(Some(options))?;
+    let containers = docker.containers().list(Some(options))?.body()?.success();
+
     println!("{:?}", containers);
 
     Ok(())
