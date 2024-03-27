@@ -68,7 +68,7 @@ where
             .build();
         let response = self.docker.request(request)?;
 
-        Ok(docker_response!(response))
+        Ok(response.into())
     }
 
     /// List processes running inside the container.
@@ -107,7 +107,7 @@ where
             .build();
         let response = self.docker.request(request)?;
 
-        Ok(docker_response!(response))
+        Ok(response.into())
     }
 
     /// Export a container
@@ -135,7 +135,7 @@ where
         let request = RequestBuilder::<(), ()>::get(&*url).build();
         let response = self.docker.request::<(), ()>(request)?;
 
-        Ok(docker_response!(response))
+        Ok(response.into())
     }
 
     /// Get changes on a container’s filesystem
@@ -164,7 +164,7 @@ where
         let request = RequestBuilder::<(), ()>::get(&*url).build();
         let response = self.docker.request(request)?;
 
-        Ok(docker_response!(response))
+        Ok(response.into())
     }
 
     /// Remove a container.
@@ -192,7 +192,7 @@ where
             .build();
         let response = self.docker.request::<(), ()>(request)?;
 
-        Ok(docker_response!(response))
+        Ok(response.into())
     }
 
     /// Resize a container TTY
@@ -230,7 +230,7 @@ where
             .build();
         let response = self.docker.request::<(), ()>(request)?;
 
-        Ok(docker_response!(response))
+        Ok(response.into())
     }
 
     /// Start a container.
@@ -260,7 +260,7 @@ where
             .build();
         let response = self.docker.request::<(), ()>(request)?;
 
-        Ok(docker_response!(response))
+        Ok(response.into())
     }
 
     /// Stop a container.
@@ -295,7 +295,7 @@ where
             .build();
         let response = self.docker.request::<(), ()>(request)?;
 
-        Ok(docker_response!(response))
+        Ok(response.into())
     }
 
     /// Restart a container.
@@ -330,7 +330,7 @@ where
             .build();
         let response = self.docker.request::<(), ()>(request)?;
 
-        Ok(docker_response!(response))
+        Ok(response.into())
     }
 
     /// Kill a container.
@@ -360,7 +360,7 @@ where
             .build();
         let response = self.docker.request::<(), ()>(request)?;
 
-        Ok(docker_response!(response))
+        Ok(response.into())
     }
 
     /// Update a container
@@ -398,7 +398,7 @@ where
             .build();
         let response = self.docker.request::<UpdateConfig<C>, ()>(request)?;
 
-        Ok(docker_response!(response))
+        Ok(response.into())
     }
 
     /// Rename a container.
@@ -435,7 +435,7 @@ where
             .build();
         let response = self.docker.request::<(), ()>(request)?;
 
-        Ok(docker_response!(response))
+        Ok(response.into())
     }
 
     /// Pause a container.
@@ -469,7 +469,7 @@ where
         let request = RequestBuilder::<(), ()>::post(&*url).build();
         let response = self.docker.request::<(), ()>(request)?;
 
-        Ok(docker_response!(response))
+        Ok(response.into())
     }
 
     /// Unpause a container.
@@ -500,7 +500,7 @@ where
         let request = RequestBuilder::<(), ()>::post(&*url).build();
         let response = self.docker.request::<(), ()>(request)?;
 
-        Ok(docker_response!(response))
+        Ok(response.into())
     }
 }
 
@@ -579,7 +579,7 @@ impl<'docker> Containers<'docker> {
             .build();
         let response = self.docker.request(request)?;
 
-        Ok(docker_response!(response))
+        Ok(response.into())
     }
 
     /// Lists the docker containers.
@@ -609,7 +609,7 @@ impl<'docker> Containers<'docker> {
             .build();
         let response = self.docker.request(request)?;
 
-        Ok(docker_response!(response))
+        Ok(response.into())
     }
 
     /// Get a container by id.

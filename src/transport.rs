@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::io::{BufReader, Write};
 use std::os::unix::net::UnixStream;
 
@@ -37,10 +35,6 @@ impl Transport {
     }
 }
 
-const BUFFER_SIZE: usize = 1024;
-const CRLF: &[u8] = b"\r\n";
-const END: &[u8] = b"\r\n\r\n";
-
 pub(crate) struct Client<S> {
     socket: S,
 }
@@ -57,5 +51,16 @@ impl Client<UnixStream> {
         socket.write_all(&buf)?;
 
         Response::<T>::try_from(BufReader::new(socket)).map_err(Into::into)
+    }
+}
+
+impl std::fmt::Debug for Transport {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Transport::Unix { path, .. } => f
+                .debug_tuple("transport::Transport::Unix")
+                .field(path)
+                .finish(),
+        }
     }
 }
