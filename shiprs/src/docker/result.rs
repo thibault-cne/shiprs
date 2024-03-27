@@ -282,7 +282,7 @@ impl<T> From<Response<T>> for DockerResponse<Response<T>, Response<ErrorResponse
         match status {
             200..=399 => DockerResponse::Success(response.into_response()),
             400..=599 => DockerResponse::Failure(response.into_response()),
-            _ => unimplemented!("Unexpected response status"),
+            _ => unreachable!("Unexpected response status"),
         }
     }
 }
