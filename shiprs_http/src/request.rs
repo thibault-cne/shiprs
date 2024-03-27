@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use serde::Serialize;
 
-use super::uri::Uri;
-use crate::http::Method;
+use crate::method::Method;
+use crate::uri::Uri;
 
 #[derive(Debug, Clone)]
 pub struct Request<'a, B>
@@ -93,7 +93,7 @@ where
             path: path.into(),
             query: None,
             headers: HashMap::from([
-                ("Host".to_string(), crate::API_VERSION.to_string()),
+                ("Host".to_string(), crate::DOCKER_API_VERSION.to_string()),
                 ("Content-Type".to_string(), "application/json".to_string()),
             ]),
             body: None,
@@ -140,7 +140,7 @@ where
         self
     }
 
-    pub(crate) fn header<K, V>(mut self, key: K, value: V) -> Self
+    pub fn header<K, V>(mut self, key: K, value: V) -> Self
     where
         K: Into<String>,
         V: Into<String>,
@@ -195,7 +195,7 @@ mod tests {
         assert_eq!(request.uri(), "/containers/json");
         assert_eq!(
             request.headers.get("Host"),
-            Some(&crate::API_VERSION.to_string())
+            Some(&crate::DOCKER_API_VERSION.to_string())
         );
         assert_eq!(
             request.headers.get("Content-Type"),
@@ -208,7 +208,7 @@ mod tests {
         assert_eq!(request.uri(), "/containers/create");
         assert_eq!(
             request.headers.get("Host"),
-            Some(&crate::API_VERSION.to_string())
+            Some(&crate::DOCKER_API_VERSION.to_string())
         );
         assert_eq!(
             request.headers.get("Content-Type"),

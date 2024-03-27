@@ -1,6 +1,3 @@
-//! Utility macros from the `httparse` crate.
-//! https://github.com/seanmonstar/httparse/blob/master/src/macros.rs
-
 macro_rules! next {
     ($bytes:ident => $ret:expr) => {{
         match $bytes.next() {

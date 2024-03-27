@@ -1,7 +1,7 @@
 use std::error::Error as StdError;
 
 use serde_json::Error as SerdeJsonError;
-use shiprs_models::models::ErrorResponse;
+use shiprs_http::Error as HttpError;
 
 /// A type alias for `Result<T, Error>`.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -22,22 +22,9 @@ struct ErrorImpl {
 pub(crate) enum ErrorKind {
     Io,
     Unit,
-    HttpParsing(HttpParsingErrorKind),
-    Response(ErrorResponse),
     SerdeJson,
     SerdeUrlEncoded,
-}
-
-#[derive(Debug)]
-pub(crate) enum HttpParsingErrorKind {
-    Version,
-    Status,
-    Reason,
-    Header,
-    ChunkSize,
-    Chunk,
-    ContentLength,
-    UnsupportedBodyEncoding,
+    ShiprsHttp,
 }
 
 impl Error {
@@ -54,23 +41,6 @@ impl Error {
     pub(crate) fn with<C: Into<Cause>>(mut self, cause: C) -> Error {
         self.inner.cause = Some(cause.into());
         self
-    }
-}
-
-impl std::fmt::Display for HttpParsingErrorKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use HttpParsingErrorKind::*;
-
-        match self {
-            ContentLength => f.write_str("invalid content length"),
-            UnsupportedBodyEncoding => f.write_str("unsupported body encoding"),
-            Version => f.write_str("invalid version"),
-            Reason => f.write_str("invalid reason"),
-            Header => f.write_str("invalid header"),
-            Status => f.write_str("invalid status"),
-            ChunkSize => f.write_str("invalid chunk size"),
-            Chunk => f.write_str("invalid chunk"),
-        }
     }
 }
 
@@ -92,10 +62,9 @@ impl std::fmt::Display for Error {
         match self.inner.kind {
             Io => write!(f, "io error: {}", self.source().unwrap()),
             Unit => write!(f, "unit error"),
-            HttpParsing(ref kind) => write!(f, "{}: {}", kind, self.source().unwrap()),
-            Response(ref err) => write!(f, "http response error: {}", err.message),
             SerdeJson => write!(f, "serde_json error: {}", self.source().unwrap()),
             SerdeUrlEncoded => write!(f, "serde_urlencoded error: {}", self.source().unwrap()),
+            ShiprsHttp => write!(f, "shiprs_http error: {}", self.source().unwrap()),
         }
     }
 }
@@ -116,10 +85,9 @@ use macros::error_from;
 
 error_from! {
     with_cause std::io::Error => fn io;
-    inner_kind HttpParsingErrorKind => HttpParsing;
-    inner_kind ErrorResponse => Response;
     with_cause SerdeJsonError => SerdeJson;
     with_cause serde_urlencoded::ser::Error => SerdeUrlEncoded;
+    with_cause HttpError => ShiprsHttp;
 }
 
 mod macros {

@@ -19,7 +19,12 @@ fn integration_test_list_containers() -> Result<()> {
         ..Default::default()
     };
 
-    let containers = docker.containers().list(Some(options)).unwrap();
+    let containers = docker
+        .containers()
+        .list(Some(options))?
+        .success()
+        .unwrap()
+        .body()?;
 
     assert_ne!(containers.len(), 0);
     assert!(containers
@@ -41,7 +46,10 @@ fn integration_test_inspect_container() -> Result<()> {
     let container = docker
         .containers()
         .get("integration_test_inspect_container")
-        .inspect(None)?;
+        .inspect(None)?
+        .success()
+        .unwrap()
+        .body()?;
 
     assert_eq!(container.config.unwrap().image.unwrap(), image);
     assert_eq!(
@@ -63,7 +71,10 @@ fn integration_test_start_container() -> Result<()> {
     let container = docker
         .containers()
         .get("integration_test_start_container")
-        .inspect(None)?;
+        .inspect(None)?
+        .success()
+        .unwrap()
+        .body()?;
 
     assert!(container.state.unwrap().running.unwrap());
 
@@ -86,7 +97,10 @@ fn integration_test_stop_container() -> Result<()> {
     let container = docker
         .containers()
         .get("integration_test_stop_container")
-        .inspect(None)?;
+        .inspect(None)?
+        .success()
+        .unwrap()
+        .body()?;
 
     assert!(!container.state.unwrap().running.unwrap());
 
@@ -104,7 +118,10 @@ fn integration_test_restart_container() -> Result<()> {
     let container = docker
         .containers()
         .get("integration_test_restart_container")
-        .inspect(None)?;
+        .inspect(None)?
+        .success()
+        .unwrap()
+        .body()?;
 
     let start_time = container.state.unwrap().started_at.unwrap();
 
@@ -116,7 +133,10 @@ fn integration_test_restart_container() -> Result<()> {
     let container = docker
         .containers()
         .get("integration_test_restart_container")
-        .inspect(None)?;
+        .inspect(None)?
+        .success()
+        .unwrap()
+        .body()?;
 
     assert!(container.state.as_ref().unwrap().running.unwrap());
     assert_ne!(container.state.unwrap().started_at.unwrap(), start_time);
@@ -131,7 +151,11 @@ fn integration_test_rename_container() -> Result<()> {
     let docker = Docker::new()?;
 
     let image = format!("{}hello-world:linux", registry_http_addr());
-    let container_id = create_container(&docker, &image, "integration_test_rename_container")?.id;
+    let container_id = create_container(&docker, &image, "integration_test_rename_container")?
+        .success()
+        .unwrap()
+        .body()?
+        .id;
 
     let option = RenameOption {
         name: "integration_test_rename_container_2",
@@ -139,7 +163,7 @@ fn integration_test_rename_container() -> Result<()> {
 
     let container = docker.containers().get(&container_id);
     container.rename(option)?;
-    let inspect = container.inspect(None)?;
+    let inspect = container.inspect(None)?.success().unwrap().body()?;
 
     assert_eq!(
         inspect.name.unwrap(),
@@ -155,13 +179,17 @@ fn integration_test_rename_container() -> Result<()> {
 fn integration_test_pause_container() -> Result<()> {
     let docker = Docker::new()?;
 
-    let container_id = create_daemon(&docker, "integration_test_pause_container")?.id;
+    let container_id = create_daemon(&docker, "integration_test_pause_container")?
+        .success()
+        .unwrap()
+        .body()?
+        .id;
 
     let container = docker.containers().get(container_id);
 
     container.pause()?;
 
-    let container_inspect = container.inspect(None)?;
+    let container_inspect = container.inspect(None)?.success().unwrap().body()?;
 
     assert!(container_inspect.state.unwrap().paused.unwrap());
 
@@ -174,14 +202,18 @@ fn integration_test_pause_container() -> Result<()> {
 fn integration_test_unpause_container() -> Result<()> {
     let docker = Docker::new()?;
 
-    let container_id = create_daemon(&docker, "integration_test_unpause_container")?.id;
+    let container_id = create_daemon(&docker, "integration_test_unpause_container")?
+        .success()
+        .unwrap()
+        .body()?
+        .id;
 
     let container = docker.containers().get(container_id);
 
     container.pause()?;
     container.unpause()?;
 
-    let container_inspect = container.inspect(None)?;
+    let container_inspect = container.inspect(None)?.success().unwrap().body()?;
 
     assert!(!container_inspect.state.unwrap().paused.unwrap());
 
