@@ -26,7 +26,7 @@ impl<T, E> DockerResponse<T, E> {
     /// let resp: DockerResponse<&str, &str> = DockerResponse::Success("hello");
     /// assert!(resp.is_success());
     ///
-    /// let resp: DockerResponse<&str, &str> = DockerResponse::Error("world");
+    /// let resp: DockerResponse<&str, &str> = DockerResponse::Failure("world");
     /// assert!(!resp.is_success());
     /// ```
     #[inline]
@@ -41,7 +41,7 @@ impl<T, E> DockerResponse<T, E> {
     /// use shiprs::DockerResponse;
     ///
     /// let resp: DockerResponse<&str, &str> = DockerResponse::Success("hello");
-    /// assert!(!resp.is_Failure());
+    /// assert!(!resp.is_failure());
     ///
     /// let resp: DockerResponse<&str, &str> = DockerResponse::Failure("world");
     /// assert!(resp.is_failure());
@@ -140,7 +140,7 @@ impl<T, E> DockerResponse<T, E> {
     ///
     /// let mut x: DockerResponse<i32, i32> = Failure(13);
     /// mutate(&mut x);
-    /// assert_eq!(x.unwrap_err(), 0);
+    /// assert_eq!(x.unwrap_failure(), 0);
     /// ```
     #[inline]
     pub fn as_mut(&mut self) -> DockerResponse<&mut T, &mut E> {
@@ -203,7 +203,7 @@ impl<T, E> DockerResponse<T, E> {
     /// use shiprs::docker::{DockerResponse, DockerResponse::*};
     ///
     /// let x: DockerResponse<u32, &str> = Success(2);
-    /// x.unwrap_err(); // panics with `2`
+    /// x.unwrap_failure(); // panics with `2`
     /// ```
     ///
     /// ```
