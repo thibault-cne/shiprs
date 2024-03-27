@@ -1,0 +1,24 @@
+[package]
+name = "shiprs"
+version = "0.1.1"
+edition = "2021"
+license-file = "../LICENSE"
+readme = "../README.md"
+description = "A Rust library for the Docker Engine API"
+repository = "https://github.com/thibault-cne/shiprs"
+authors = ["Thibault C."]
+
+[dependencies]
+# Internal dependencies
+shiprs_models.workspace = true
+shiprs_http.workspace = true
+
+serde.workspace = true
+serde_json.workspace = true
+serde_urlencoded.workspace = true
+
+[features]
+default = ["unix-socket", "chrono"]
+unix-socket = []
+chrono = ["shiprs_models/chrono"]
+time = ["shiprs_models/time"]
