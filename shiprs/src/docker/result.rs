@@ -210,10 +210,10 @@ impl<T, E> DockerResponse<T, E> {
     /// use shiprs::docker::{DockerResponse, DockerResponse::*};
     ///
     /// let x: DockerResponse<u32, &str> = Failure("emergency failure");
-    /// assert_eq!(x.unwrap_err(), "emergency failure");
+    /// assert_eq!(x.unwrap_failure(), "emergency failure");
     /// ```
     #[inline]
-    pub fn unwrap_err(self) -> E
+    pub fn unwrap_failure(self) -> E
     where
         T: std::fmt::Debug,
     {
