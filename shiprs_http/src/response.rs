@@ -484,7 +484,7 @@ mod tests {
             response.headers.get("Transfer-Encoding"),
             Some(&"chunked".to_string())
         );
-        assert_eq!(response.body, b"Wikipedia in chunks.");
+        assert_eq!(response.body, b"\"Wikipedia in chunks.\"");
 
         Ok(())
     }
@@ -505,7 +505,7 @@ mod tests {
             response.headers.get("Content-Length"),
             Some(&"15".to_string())
         );
-        assert_eq!(response.body, b"Hello, World!");
+        assert_eq!(response.body, b"\"Hello, World!\"");
 
         Ok(())
     }
@@ -547,6 +547,6 @@ mod tests {
             response.headers.get("Content-Length"),
             Some(&"15".to_string())
         );
-        assert_eq!(response.body, b"Hello, World!");
+        assert_eq!(response.body, b"\"Hello, World!\"");
     }
 }
