@@ -13,7 +13,7 @@ pub type DockerResult<T> = Result<DockerResponse<Response<T>, Response<ErrorResp
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum DockerResponse<T, E> {
     Success(T),
-    Error(E),
+    Failure(E),
 }
 
 impl<T, E> DockerResponse<T, E> {
@@ -34,27 +34,27 @@ impl<T, E> DockerResponse<T, E> {
         matches!(self, DockerResponse::Success(_))
     }
 
-    /// Returns true if the response is an error.
+    /// Returns true if the response is an Failure.
     ///
     /// # Example
     /// ```
     /// use shiprs::DockerResponse;
     ///
     /// let resp: DockerResponse<&str, &str> = DockerResponse::Success("hello");
-    /// assert!(!resp.is_error());
+    /// assert!(!resp.is_Failure());
     ///
-    /// let resp: DockerResponse<&str, &str> = DockerResponse::Error("world");
-    /// assert!(resp.is_error());
+    /// let resp: DockerResponse<&str, &str> = DockerResponse::Failure("world");
+    /// assert!(resp.is_failure());
     /// ```
     #[inline]
-    pub fn is_error(&self) -> bool {
-        matches!(self, DockerResponse::Error(_))
+    pub fn is_failure(&self) -> bool {
+        matches!(self, DockerResponse::Failure(_))
     }
 
     /// Converts from `DockerResponse<T>` to [`Option<Response<T>>`].
     ///
     /// Converts `self` into an [`Option<Response<T>>`], consuming `self`,
-    /// and discarding the error value, if any.
+    /// and discarding the failure value, if any.
     ///
     /// # Example
     /// ```
@@ -63,7 +63,7 @@ impl<T, E> DockerResponse<T, E> {
     /// let resp: DockerResponse<&str, &str> = DockerResponse::Success("hello");
     /// assert_eq!(resp.success(), Some("hello"));
     ///
-    /// let resp: DockerResponse<&str, &str> = DockerResponse::Error("world");
+    /// let resp: DockerResponse<&str, &str> = DockerResponse::Failure("world");
     /// assert_eq!(resp.success(), None);
     /// ```
     #[inline]
@@ -84,15 +84,15 @@ impl<T, E> DockerResponse<T, E> {
     /// use shiprs::DockerResponse;
     ///
     /// let resp: DockerResponse<&str, &str> = DockerResponse::Success("hello");
-    /// assert_eq!(resp.error(), None);
+    /// assert_eq!(resp.failure(), None);
     ///
-    /// let resp: DockerResponse<&str, &str> = DockerResponse::Error("world");
-    /// assert_eq!(resp.error(), Some("world"));
+    /// let resp: DockerResponse<&str, &str> = DockerResponse::Failure("world");
+    /// assert_eq!(resp.failure(), Some("world"));
     /// ```
     #[inline]
-    pub fn error(self) -> Option<E> {
+    pub fn failure(self) -> Option<E> {
         match self {
-            DockerResponse::Error(response) => Some(response),
+            DockerResponse::Failure(response) => Some(response),
             _ => None,
         }
     }
@@ -109,14 +109,14 @@ impl<T, E> DockerResponse<T, E> {
     /// let resp: DockerResponse<&str, &str> = DockerResponse::Success("hello");
     /// assert_eq!(resp.as_ref(), DockerResponse::Success(&"hello"));
     ///
-    /// let resp: DockerResponse<&str, &str> = DockerResponse::Error("world");
-    /// assert_eq!(resp.as_ref(), DockerResponse::Error(&"world"));
+    /// let resp: DockerResponse<&str, &str> = DockerResponse::Failure("world");
+    /// assert_eq!(resp.as_ref(), DockerResponse::Failure(&"world"));
     /// ```
     #[inline]
     pub const fn as_ref(&self) -> DockerResponse<&T, &E> {
         match self {
             DockerResponse::Success(ref response) => DockerResponse::Success(response),
-            DockerResponse::Error(ref response) => DockerResponse::Error(response),
+            DockerResponse::Failure(ref response) => DockerResponse::Failure(response),
         }
     }
 
@@ -130,7 +130,7 @@ impl<T, E> DockerResponse<T, E> {
     /// fn mutate(r: &mut DockerResponse<i32, i32>) {
     ///     match r.as_mut() {
     ///         Success(v) => *v = 42,
-    ///         Error(e) => *e = 0,
+    ///         Failure(e) => *e = 0,
     ///     }
     /// }
     ///
@@ -138,7 +138,7 @@ impl<T, E> DockerResponse<T, E> {
     /// mutate(&mut x);
     /// assert_eq!(x.unwrap(), 42);
     ///
-    /// let mut x: DockerResponse<i32, i32> = Error(13);
+    /// let mut x: DockerResponse<i32, i32> = Failure(13);
     /// mutate(&mut x);
     /// assert_eq!(x.unwrap_err(), 0);
     /// ```
@@ -146,20 +146,20 @@ impl<T, E> DockerResponse<T, E> {
     pub fn as_mut(&mut self) -> DockerResponse<&mut T, &mut E> {
         match self {
             DockerResponse::Success(ref mut response) => DockerResponse::Success(response),
-            DockerResponse::Error(ref mut response) => DockerResponse::Error(response),
+            DockerResponse::Failure(ref mut response) => DockerResponse::Failure(response),
         }
     }
 
     /// Returns the contained [`DockerResponse::Success`] value, consuming the `self` value.
     ///
     /// Because this function may panic, its use is generally discouraged.
-    /// Instead, prefer to use pattern matching and handle the [`DockerResponse::Error`]
+    /// Instead, prefer to use pattern matching and handle the [`DockerResponse::Failure`]
     /// case explicitly.
     ///
     /// # Panics
     ///
-    /// Panics if the value is an [`DockerResponse::Error`], with a panic message provided by the
-    /// [`DockerResponse::Error`]'s value.
+    /// Panics if the value is an [`DockerResponse::Failure`], with a panic message provided by the
+    /// [`DockerResponse::Failure`]'s value.
     ///
     ///
     /// # Examples
@@ -176,7 +176,7 @@ impl<T, E> DockerResponse<T, E> {
     /// ```should_panic
     /// use shiprs::docker::{DockerResponse, DockerResponse::*};
     ///
-    /// let x: DockerResponse<u32, &str> = Error("emergency failure");
+    /// let x: DockerResponse<u32, &str> = Failure("emergency failure");
     /// x.unwrap(); // panics with `emergency failure`
     /// ```
     #[inline]
@@ -186,11 +186,11 @@ impl<T, E> DockerResponse<T, E> {
     {
         match self {
             DockerResponse::Success(val) => val,
-            DockerResponse::Error(err) => panic!("{:?}", err),
+            DockerResponse::Failure(err) => panic!("{:?}", err),
         }
     }
 
-    /// Returns the contained [`DockerResponse::Error`] value, consuming the `self` value.
+    /// Returns the contained [`DockerResponse::Failure`] value, consuming the `self` value.
     ///
     /// # Panics
     ///
@@ -209,7 +209,7 @@ impl<T, E> DockerResponse<T, E> {
     /// ```
     /// use shiprs::docker::{DockerResponse, DockerResponse::*};
     ///
-    /// let x: DockerResponse<u32, &str> = Error("emergency failure");
+    /// let x: DockerResponse<u32, &str> = Failure("emergency failure");
     /// assert_eq!(x.unwrap_err(), "emergency failure");
     /// ```
     #[inline]
@@ -219,16 +219,16 @@ impl<T, E> DockerResponse<T, E> {
     {
         match self {
             DockerResponse::Success(val) => panic!("{:?}", val),
-            DockerResponse::Error(err) => err,
+            DockerResponse::Failure(err) => err,
         }
     }
 
     /// Returns the contained [`DockerResponse::Success`] value, consuming the `self` value,
-    /// without checking that the value is not an [`DockerResponse::Error`].
+    /// without checking that the value is not an [`DockerResponse::Failure`].
     ///
     /// # Safety
     ///
-    /// Calling this method on an [`DockerResponse::Error`] is *[undefined behavior]*.
+    /// Calling this method on an [`DockerResponse::Failure`] is *[undefined behavior]*.
     ///
     /// # Examples
     ///
@@ -242,7 +242,7 @@ impl<T, E> DockerResponse<T, E> {
     /// ```no_run
     /// use shiprs::docker::{DockerResponse, DockerResponse::*};
     ///
-    /// let x: DockerResponse<u32, &str> = Error("emergency failure");
+    /// let x: DockerResponse<u32, &str> = Failure("emergency failure");
     /// unsafe { x.unwrap_unchecked(); } // Undefined behavior!
     /// ```
     #[inline]
@@ -250,7 +250,7 @@ impl<T, E> DockerResponse<T, E> {
         debug_assert!(self.is_success());
         match self {
             DockerResponse::Success(val) => val,
-            DockerResponse::Error(_) => std::hint::unreachable_unchecked(),
+            DockerResponse::Failure(_) => std::hint::unreachable_unchecked(),
         }
     }
 }
@@ -267,9 +267,9 @@ where
                 .body()
                 .map(|body| DockerResponse::Success(body))
                 .map_err(Into::into),
-            DockerResponse::Error(response) => response
+            DockerResponse::Failure(response) => response
                 .body()
-                .map(|body| DockerResponse::Error(body))
+                .map(|body| DockerResponse::Failure(body))
                 .map_err(Into::into),
         }
     }
@@ -281,7 +281,7 @@ impl<T> From<Response<T>> for DockerResponse<Response<T>, Response<ErrorResponse
 
         match status {
             200..=399 => DockerResponse::Success(response.into_response()),
-            400..=599 => DockerResponse::Error(response.into_response()),
+            400..=599 => DockerResponse::Failure(response.into_response()),
             _ => unimplemented!("Unexpected response status"),
         }
     }
