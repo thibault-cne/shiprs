@@ -5,7 +5,7 @@ mod image;
 mod network;
 mod transport;
 
-pub use docker::{Docker, DockerResponse};
+pub use docker::Docker;
 
 pub(crate) fn serialize_as_json<T: serde::Serialize, S: serde::Serializer>(
     t: &T,

@@ -1,7 +1,7 @@
 use std::io::{BufReader, Write};
 use std::os::unix::net::UnixStream;
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use shiprs_http::{Request, Response};
 
 use crate::error::Result;
@@ -24,10 +24,9 @@ impl Transport {
         })
     }
 
-    pub(crate) fn request<S, T>(&self, req: Request<S>) -> Result<Response<T>>
+    pub(crate) fn request<S>(&self, req: Request<S>) -> Result<Response>
     where
         S: Serialize,
-        T: for<'de> Deserialize<'de>,
     {
         match self {
             Transport::Unix { client, .. } => client.request(req),
@@ -40,17 +39,16 @@ pub(crate) struct Client<S> {
 }
 
 impl Client<UnixStream> {
-    fn request<S, T>(&self, req: Request<S>) -> Result<Response<T>>
+    fn request<S>(&self, req: Request<S>) -> Result<Response>
     where
         S: Serialize,
-        T: for<'de> Deserialize<'de>,
     {
         let mut socket = self.socket.try_clone()?;
 
         let buf = req.into_bytes();
         socket.write_all(&buf)?;
 
-        Response::<T>::try_from(BufReader::new(socket)).map_err(Into::into)
+        Response::try_from(BufReader::new(socket)).map_err(Into::into)
     }
 }
 

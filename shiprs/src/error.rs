@@ -6,41 +6,54 @@ use shiprs_http::Error as HttpError;
 /// A type alias for `Result<T, Error>`.
 pub type Result<T> = std::result::Result<T, Error>;
 
-type Cause = Box<dyn StdError + Send + Sync>;
-
 /// Internal error type for the Docker API client.
 pub struct Error {
-    inner: Box<ErrorImpl>,
+    inner: ErrorImpl,
 }
 
 struct ErrorImpl {
     kind: ErrorKind,
-    cause: Option<Cause>,
+    error: Box<dyn StdError + Send + Sync>,
 }
 
-#[derive(Debug)]
-pub(crate) enum ErrorKind {
+#[derive(Debug, Clone, Copy)]
+pub enum ErrorKind {
     Io,
-    Unit,
     SerdeJson,
     SerdeUrlEncoded,
     ShiprsHttp,
+    DockerApiResponse,
 }
 
 impl Error {
-    pub(crate) fn new(kind: ErrorKind) -> Error {
+    pub(crate) fn new<E>(kind: ErrorKind, error: E) -> Error
+    where
+        E: Into<Box<dyn StdError + Send + Sync>>,
+    {
         Error {
-            inner: Box::new(ErrorImpl { kind, cause: None }),
+            inner: ErrorImpl {
+                kind,
+                error: error.into(),
+            },
         }
     }
 
-    pub(crate) fn io() -> Error {
-        Error::new(ErrorKind::Io)
+    pub(crate) fn docker_api_response(
+        status: u16,
+        inner: shiprs_models::models::ErrorResponse,
+    ) -> Error {
+        Error::new(
+            ErrorKind::DockerApiResponse,
+            DockerApiResponse { status, inner },
+        )
     }
 
-    pub(crate) fn with<C: Into<Cause>>(mut self, cause: C) -> Error {
-        self.inner.cause = Some(cause.into());
-        self
+    pub fn kind(&self) -> ErrorKind {
+        self.inner.kind
+    }
+
+    pub fn into_inner(self) -> Box<dyn StdError + Send + Sync> {
+        self.inner.error
     }
 }
 
@@ -48,72 +61,53 @@ impl std::fmt::Debug for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut f = f.debug_tuple("error::Error");
         f.field(&self.inner.kind);
-        if let Some(ref cause) = self.inner.cause {
-            f.field(cause);
-        }
+        f.field(&self.inner.error);
         f.finish()
     }
 }
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use ErrorKind::*;
-
-        match self.inner.kind {
-            Io => write!(f, "io error: {}", self.source().unwrap()),
-            Unit => write!(f, "unit error"),
-            SerdeJson => write!(f, "serde_json error: {}", self.source().unwrap()),
-            SerdeUrlEncoded => write!(f, "serde_urlencoded error: {}", self.source().unwrap()),
-            ShiprsHttp => write!(f, "shiprs_http error: {}", self.source().unwrap()),
-        }
+        self.inner.error.fmt(f)
     }
 }
 
 impl StdError for Error {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
-        self.inner.cause.as_ref().map(|cause| &**cause as _)
+        Some(self.inner.error.as_ref())
     }
 }
 
-impl From<()> for Error {
-    fn from(_: ()) -> Self {
-        Error::new(ErrorKind::Unit)
+#[derive(Debug)]
+pub struct DockerApiResponse {
+    pub inner: shiprs_models::models::ErrorResponse,
+    pub status: u16,
+}
+
+impl std::fmt::Display for DockerApiResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.inner.message)
     }
 }
+
+impl StdError for DockerApiResponse {}
 
 use macros::error_from;
 
 error_from! {
-    with_cause std::io::Error => fn io;
-    with_cause SerdeJsonError => SerdeJson;
-    with_cause serde_urlencoded::ser::Error => SerdeUrlEncoded;
-    with_cause HttpError => ShiprsHttp;
+    std::io::Error => Io;
+    SerdeJsonError => SerdeJson;
+    serde_urlencoded::ser::Error => SerdeUrlEncoded;
+    HttpError => ShiprsHttp;
 }
 
 mod macros {
     macro_rules! error_from {
-        {inner_kind $inner:ident => $kind:ident; $($tt:tt)*} => {
-            impl From<$inner> for Error {
-                fn from(value: $inner) -> Self {
-                    Error::new(ErrorKind::$kind(value))
-                }
-            }
-
-            error_from!{ $($tt)* }
-        };
-        {with_cause $error:path => fn $fn:ident; $($tt:tt)*} => {
+        {} => {};
+        {$error:path => fn $fn:ident; $($tt:tt)*} => {
             impl From<$error> for Error {
                 fn from(value: $error) -> Self {
-                    Error::$fn().with(value)
-                }
-            }
-
-            error_from!{ $($tt)* }
-        };
-        {with_cause $error:path => $kind:ident; $($tt:tt)*} => {
-            impl From<$error> for Error {
-                fn from(value: $error) -> Self {
-                    Error::new(ErrorKind::$kind).with(value)
+                    Error::$fn(value)
                 }
             }
 
@@ -121,14 +115,13 @@ mod macros {
         };
         {$error:path => $kind:ident; $($tt:tt)*} => {
             impl From<$error> for Error {
-                fn from(_: $error) -> Self {
-                    Error::new(ErrorKind::$kind)
+                fn from(value: $error) -> Self {
+                    Error::new(ErrorKind::$kind, value)
                 }
             }
 
             error_from!{ $($tt)* }
         };
-        {} => {};
     }
 
     pub(super) use error_from;

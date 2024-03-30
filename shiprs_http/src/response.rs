@@ -8,16 +8,17 @@ use crate::{CRLF, HEADERS_END};
 
 /// An HTTP response.
 #[derive(Debug, Default, Clone)]
-pub struct Response<B> {
+pub struct Response {
+    #[allow(dead_code)]
     version: HttpVersion,
     status: u16,
+    #[allow(dead_code)]
     reason: String,
     headers: HashMap<String, String>,
     body: Vec<u8>,
-    body_type: std::marker::PhantomData<B>,
 }
 
-impl<B> Response<B> {
+impl Response {
     pub fn status(&self) -> u16 {
         self.status
     }
@@ -26,24 +27,8 @@ impl<B> Response<B> {
         &self.headers
     }
 
-    pub fn into_response<T>(self) -> Response<T> {
-        Response {
-            version: self.version,
-            status: self.status,
-            reason: self.reason,
-            headers: self.headers,
-            body: self.body,
-            body_type: std::marker::PhantomData,
-        }
-    }
-}
-
-impl<B> Response<B>
-where
-    B: for<'de> serde::Deserialize<'de>,
-{
-    pub fn body(&self) -> Result<B> {
-        serde_json::from_slice(&self.body).map_err(|e| e.into())
+    pub fn body(&self) -> &[u8] {
+        &self.body
     }
 }
 
@@ -337,7 +322,7 @@ fn parse_length_body<R: Read>(parser: &mut Parser<R>) -> Result<Vec<u8>> {
     Ok(buf)
 }
 
-impl<R, B> TryFrom<BufReader<R>> for Response<B>
+impl<R> TryFrom<BufReader<R>> for Response
 where
     R: Read,
 {
@@ -361,7 +346,6 @@ where
             reason,
             headers,
             body,
-            body_type: std::marker::PhantomData,
         })
     }
 }
@@ -471,7 +455,7 @@ mod tests {
     #[test]
     fn test_parse_respons_with_chunked_body() -> Result<()> {
         let response: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nTransfer-Encoding: chunked\r\n\r\n5\r\n\"Wiki\r\n7\r\npedia i\r\nA\r\nn chunks.\"\r\n0\r\n\r\n";
-        let response = Response::<String>::try_from(BufReader::new(response))?;
+        let response = Response::try_from(BufReader::new(response))?;
 
         assert_eq!(response.version, HttpVersion::Http1_1);
         assert_eq!(response.status, 200);
@@ -492,7 +476,7 @@ mod tests {
     #[test]
     fn test_parse_response_with_length_body() -> Result<()> {
         let response: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 15\r\n\r\n\"Hello, World!\"";
-        let response = Response::<String>::try_from(BufReader::new(response))?;
+        let response = Response::try_from(BufReader::new(response))?;
 
         assert_eq!(response.version, HttpVersion::Http1_1);
         assert_eq!(response.status, 200);
@@ -514,7 +498,7 @@ mod tests {
     fn parse_response_with_empty_body() -> Result<()> {
         let response: &[u8] =
             b"HTTP/1.1 204 No-Content\r\nContent-Type: none\r\nVersion: v1.44\r\n\r\n";
-        let response = Response::<()>::try_from(BufReader::new(response))?;
+        let response = Response::try_from(BufReader::new(response))?;
 
         assert_eq!(response.version, HttpVersion::Http1_1);
         assert_eq!(response.status, 204);
@@ -532,9 +516,7 @@ mod tests {
     #[test]
     fn test_convert_response() {
         let response: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 15\r\n\r\n\"Hello, World!\"";
-        let response = Response::<String>::try_from(BufReader::new(response)).unwrap();
-
-        let response: Response<&str> = response.into_response();
+        let response = Response::try_from(BufReader::new(response)).unwrap();
 
         assert_eq!(response.version, HttpVersion::Http1_1);
         assert_eq!(response.status, 200);
