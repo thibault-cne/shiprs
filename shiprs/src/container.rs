@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 use shiprs_http::RequestBuilder;
 use shiprs_models::models::*;
 
-use crate::docker::{Docker, DockerResult};
+use crate::docker::Docker;
+use crate::error::Result;
 
 /// Interface for interacting with a container.
 ///
@@ -61,14 +62,13 @@ where
     pub fn inspect(
         &self,
         options: Option<ContainerInspectOption>,
-    ) -> DockerResult<ContainerInspectResponse> {
+    ) -> Result<ContainerInspectResponse> {
         let url = format!("/containers/{}/json", self.id.as_ref());
         let request = RequestBuilder::<ContainerInspectOption, ()>::get(&*url)
             .query(options)
             .build();
-        let response = self.docker.request(request)?;
 
-        Ok(response.into())
+        self.docker.process_into_value(request)
     }
 
     /// List processes running inside the container.
@@ -94,10 +94,7 @@ where
     /// # Ok(())
     /// # }
     #[cfg(feature = "unix-socket")]
-    pub fn top<O>(
-        &self,
-        options: Option<ContainerTopOption<O>>,
-    ) -> DockerResult<ContainerTopResponse>
+    pub fn top<O>(&self, options: Option<ContainerTopOption<O>>) -> Result<ContainerTopResponse>
     where
         O: Serialize + Into<String>,
     {
@@ -105,9 +102,8 @@ where
         let request = RequestBuilder::<ContainerTopOption<O>, ()>::get(&*url)
             .query(options)
             .build();
-        let response = self.docker.request(request)?;
 
-        Ok(response.into())
+        self.docker.process_into_value(request)
     }
 
     /// Export a container
@@ -130,12 +126,11 @@ where
     ///     .export()?;
     /// # Ok(())
     /// # }
-    pub fn export(&self) -> DockerResult<()> {
+    pub fn export(&self) -> Result<()> {
         let url = format!("/containers/{}/export", self.id.as_ref());
         let request = RequestBuilder::<(), ()>::get(&*url).build();
-        let response = self.docker.request::<(), ()>(request)?;
 
-        Ok(response.into())
+        self.docker.process_into_unit(request)
     }
 
     /// Get changes on a container’s filesystem
@@ -159,12 +154,11 @@ where
     /// }
     /// # Ok(())
     /// # }
-    pub fn changes(&self) -> DockerResult<Vec<FilesystemChange>> {
+    pub fn changes(&self) -> Result<Vec<FilesystemChange>> {
         let url = format!("/containers/{}/changes", self.id.as_ref());
         let request = RequestBuilder::<(), ()>::get(&*url).build();
-        let response = self.docker.request(request)?;
 
-        Ok(response.into())
+        self.docker.process_into_value(request)
     }
 
     /// Remove a container.
@@ -185,14 +179,13 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    pub fn remove(&self, options: Option<RemoveOption>) -> DockerResult<()> {
+    pub fn remove(&self, options: Option<RemoveOption>) -> Result<()> {
         let url = format!("/containers/{}", self.id.as_ref());
         let request = RequestBuilder::<RemoveOption, ()>::delete(&*url)
             .query(options)
             .build();
-        let response = self.docker.request::<(), ()>(request)?;
 
-        Ok(response.into())
+        self.docker.process_into_unit(request)
     }
 
     /// Resize a container TTY
@@ -223,14 +216,13 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    pub fn resize(&self, options: Option<ResizeOption>) -> DockerResult<()> {
+    pub fn resize(&self, options: Option<ResizeOption>) -> Result<()> {
         let url = format!("/containers/{}/resize", self.id.as_ref());
         let request = RequestBuilder::<ResizeOption, ()>::post(&*url)
             .query(options)
             .build();
-        let response = self.docker.request::<(), ()>(request)?;
 
-        Ok(response.into())
+        self.docker.process_into_unit(request)
     }
 
     /// Start a container.
@@ -253,14 +245,13 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    pub fn start(&self, options: Option<StartOption>) -> DockerResult<()> {
+    pub fn start(&self, options: Option<StartOption>) -> Result<()> {
         let url = format!("/containers/{}/start", self.id.as_ref());
         let request = RequestBuilder::<StartOption, ()>::post(&*url)
             .query(options)
             .build();
-        let response = self.docker.request::<(), ()>(request)?;
 
-        Ok(response.into())
+        self.docker.process_into_unit(request)
     }
 
     /// Stop a container.
@@ -288,14 +279,13 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    pub fn stop(&self, options: Option<StopOption>) -> DockerResult<()> {
+    pub fn stop(&self, options: Option<StopOption>) -> Result<()> {
         let url = format!("/containers/{}/stop", self.id.as_ref());
         let request = RequestBuilder::<StopOption, ()>::post(&*url)
             .query(options)
             .build();
-        let response = self.docker.request::<(), ()>(request)?;
 
-        Ok(response.into())
+        self.docker.process_into_unit(request)
     }
 
     /// Restart a container.
@@ -323,14 +313,13 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    pub fn restart(&self, options: Option<RestartOption>) -> DockerResult<()> {
+    pub fn restart(&self, options: Option<RestartOption>) -> Result<()> {
         let url = format!("/containers/{}/restart", self.id.as_ref());
         let request = RequestBuilder::<RestartOption, ()>::post(&*url)
             .query(options)
             .build();
-        let response = self.docker.request::<(), ()>(request)?;
 
-        Ok(response.into())
+        self.docker.process_into_unit(request)
     }
 
     /// Kill a container.
@@ -353,14 +342,13 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    pub fn kill(&self, options: Option<KillOption>) -> DockerResult<()> {
+    pub fn kill(&self, options: Option<KillOption>) -> Result<()> {
         let url = format!("/containers/{}/kill", self.id.as_ref());
         let request = RequestBuilder::<KillOption, ()>::post(&*url)
             .query(options)
             .build();
-        let response = self.docker.request::<(), ()>(request)?;
 
-        Ok(response.into())
+        self.docker.process_into_unit(request)
     }
 
     /// Update a container
@@ -388,7 +376,7 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    pub fn update<C>(&self, config: UpdateConfig<C>) -> DockerResult<()>
+    pub fn update<C>(&self, config: UpdateConfig<C>) -> Result<()>
     where
         C: Into<String> + Eq + Hash + Serialize,
     {
@@ -396,9 +384,8 @@ where
         let request = RequestBuilder::<(), UpdateConfig<C>>::post(&*url)
             .body(config)
             .build();
-        let response = self.docker.request::<UpdateConfig<C>, ()>(request)?;
 
-        Ok(response.into())
+        self.docker.process_into_unit(request)
     }
 
     /// Rename a container.
@@ -425,7 +412,7 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    pub fn rename<O>(&self, option: RenameOption<O>) -> DockerResult<()>
+    pub fn rename<O>(&self, option: RenameOption<O>) -> Result<()>
     where
         O: Into<String> + Serialize,
     {
@@ -433,9 +420,8 @@ where
         let request = RequestBuilder::<RenameOption<O>, ()>::post(&*url)
             .query(Some(option))
             .build();
-        let response = self.docker.request::<(), ()>(request)?;
 
-        Ok(response.into())
+        self.docker.process_into_unit(request)
     }
 
     /// Pause a container.
@@ -464,12 +450,11 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    pub fn pause(&self) -> DockerResult<()> {
+    pub fn pause(&self) -> Result<()> {
         let url = format!("/containers/{}/pause", self.id.as_ref());
         let request = RequestBuilder::<(), ()>::post(&*url).build();
-        let response = self.docker.request::<(), ()>(request)?;
 
-        Ok(response.into())
+        self.docker.process_into_unit(request)
     }
 
     /// Unpause a container.
@@ -495,12 +480,11 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    pub fn unpause(&self) -> DockerResult<()> {
+    pub fn unpause(&self) -> Result<()> {
         let url = format!("/containers/{}/unpause", self.id.as_ref());
         let request = RequestBuilder::<(), ()>::post(&*url).build();
-        let response = self.docker.request::<(), ()>(request)?;
 
-        Ok(response.into())
+        self.docker.process_into_unit(request)
     }
 }
 
@@ -514,7 +498,7 @@ where
 /// # fn main() -> Result<()> {
 /// let docker = Docker::new()?;
 ///
-/// let containers = docker.containers().list::<&str>(None)?.body()?.success().unwrap();
+/// let containers = docker.containers().list::<&str>(None)?;
 ///
 /// for container in containers {
 ///    println!("Container ID: {:?}", container.id);
@@ -567,7 +551,7 @@ impl<'docker> Containers<'docker> {
         &self,
         options: Option<CreateOption<O>>,
         config: CreateConfig<C>,
-    ) -> DockerResult<ContainerCreateResponse>
+    ) -> Result<ContainerCreateResponse>
     where
         O: Into<String> + Serialize,
         C: Into<String> + Eq + Hash + Serialize,
@@ -577,9 +561,8 @@ impl<'docker> Containers<'docker> {
             .query(options)
             .body(config)
             .build();
-        let response = self.docker.request(request)?;
 
-        Ok(response.into())
+        self.docker.process_into_value(request)
     }
 
     /// Lists the docker containers.
@@ -599,7 +582,7 @@ impl<'docker> Containers<'docker> {
     /// println!("{:?}", containers);
     /// # Ok(())
     /// # }
-    pub fn list<T>(&self, options: Option<ListOption<T>>) -> DockerResult<Vec<ContainerSummary>>
+    pub fn list<T>(&self, options: Option<ListOption<T>>) -> Result<Vec<ContainerSummary>>
     where
         T: Into<String> + std::hash::Hash + Eq + Serialize,
     {
@@ -607,9 +590,8 @@ impl<'docker> Containers<'docker> {
         let request = RequestBuilder::<ListOption<T>, ()>::get(url)
             .query(options)
             .build();
-        let response = self.docker.request(request)?;
 
-        Ok(response.into())
+        self.docker.process_into_value(request)
     }
 
     /// Get a container by id.

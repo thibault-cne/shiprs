@@ -5,9 +5,6 @@ use serde::Serialize;
 use crate::error::Result;
 use crate::transport::Transport;
 
-pub mod result;
-pub use result::{DockerResponse, DockerResult};
-
 pub struct Docker {
     transport: Transport,
 }
@@ -38,15 +35,38 @@ impl Docker {
         })
     }
 
-    pub(crate) fn request<S, T>(
-        &self,
-        req: shiprs_http::Request<S>,
-    ) -> Result<shiprs_http::Response<T>>
+    pub(crate) fn request<S>(&self, req: shiprs_http::Request<S>) -> Result<shiprs_http::Response>
+    where
+        S: Serialize,
+    {
+        let res = self.transport.request(req)?;
+
+        match res.status() {
+            200..=399 => Ok(res),
+            400..=599 => {
+                let status = res.status();
+                let err = serde_json::from_slice(res.body())?;
+                Err(crate::error::Error::docker_api_response(status, err))
+            }
+            _ => unreachable!("unexpected status code: {}", res.status()),
+        }
+    }
+
+    pub(crate) fn process_into_value<S, T>(&self, req: shiprs_http::Request<S>) -> Result<T>
     where
         S: Serialize,
         T: for<'de> serde::Deserialize<'de>,
     {
-        self.transport.request(req)
+        let res = self.request(req)?;
+        serde_json::from_slice(res.body()).map_err(Into::into)
+    }
+
+    pub(crate) fn process_into_unit<S>(&self, req: shiprs_http::Request<S>) -> Result<()>
+    where
+        S: Serialize,
+    {
+        let _ = self.request(req)?;
+        Ok(())
     }
 
     pub fn containers(&self) -> crate::container::Containers {
