@@ -7,7 +7,7 @@ license = "MIT"
 edition = "2021"
 
 [dependencies]
-chrono = { version = "0.4.37", default-features = false, features = ["std", "clock", "serde"], optional = true }
+chrono = { version = "0.4.38", default-features = false, features = ["std", "clock", "serde"], optional = true }
 serde = { version = "1.0.197", features = ["derive"] }
 time = { version = "0.3.34", features = ["formatting", "parsing"], optional = true }
 
