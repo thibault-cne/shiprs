@@ -11,5 +11,5 @@ chrono = { version = "0.4.37", default-features = false, features = ["std", "clo
 serde = { version = "1.0.197", features = ["derive"] }
 time = { version = "0.3.34", features = ["formatting", "parsing"], optional = true }
 
-serde_with = {version = "3.7.0", default-features = false, features = ["std"]}
+serde_with = {version = "3.8.1", default-features = false, features = ["std"]}
 serde_repr = "0.1.18"
