@@ -3,7 +3,7 @@ resolver = "2"
 members = ["shiprs", "shiprs_http", "shiprs_models"]
 
 [workspace.dependencies]
-serde = { version = "1.0.197", features = ["derive"] }
+serde = { version = "1.0.203", features = ["derive"] }
 serde_json = "1.0.115"
 serde_urlencoded = "0.7.1"
 shiprs_models = { path = "shiprs_models" }
