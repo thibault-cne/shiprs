@@ -12,4 +12,4 @@ serde = { version = "1.0.204", features = ["derive"] }
 time = { version = "0.3.34", features = ["formatting", "parsing"], optional = true }
 
 serde_with = {version = "3.7.0", default-features = false, features = ["std"]}
-serde_repr = "0.1.18"
+serde_repr = "0.1.19"
